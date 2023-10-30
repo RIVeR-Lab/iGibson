@@ -20,6 +20,15 @@ from trajectory_msgs.msg import JointTrajectory
 
 from igibson.envs.igibson_env import iGibsonEnv
 from igibson.utils.utils import parse_config
+'''
+imports for environment
+'''
+from igibson import object_states
+from igibson.objects.ycb_object import YCBObject
+from igibson.objects.ycb_object import StatefulObject
+from igibson.envs.igibson_env import iGibsonEnv
+from igibson.utils.utils import parse_config
+from mobiman_simulation.msg import MapServerObject, MapServerObjectArray
 
 class SimNode:
     def __init__(self, ns=""):
@@ -79,7 +88,7 @@ class SimNode:
         self.gt_pose_pub = rospy.Publisher("ground_truth_odom", Odometry, queue_size=10)
         self.camera_info_pub = rospy.Publisher("gibson_ros/camera/depth/camera_info", CameraInfo, queue_size=10)
         self.joint_states_pub = rospy.Publisher("gibson_ros/joint_states", JointState, queue_size=10)
-
+        self.map_server_pub = rospy.Publisher("/map_server_objects", MapServerObjectArray, queue_size=10)
         # Set Subscribers
         rospy.Subscriber("mobile_base_controller/cmd_vel", Twist, self.cmd_base_callback)
         rospy.Subscriber("arm_controller/cmd_pos", JointTrajectory, self.cmd_arm_callback)
@@ -96,9 +105,17 @@ class SimNode:
             use_pb_gui=use_pb_gui,
             ros_node_init=True            
         )  # assume a 30Hz simulation
+        #####
+        '''Objects Spawn'''
+        #####
+        self.object_array = MapServerObjectArray()
+        self.conveyor = None
+        self.spawn_conveyor()
+        # self.spawn_red_cube()
+        self.red_cube = None
         self.env.reset()
-
         self.tp_time = None
+        self.mapserver_conveyor = None
 
         #print("[SimNode::__init__] DEBUG_INF")
         #while(1):
@@ -111,7 +128,33 @@ class SimNode:
 
         print("[SimNode::__init__] END")
     
+
+    def spawn_conveyor(self, pose=[3,3,0.2], orientation=[0.7071068, 0, 0, 0.7071068]):
+        if self.conveyor == None:
+            self.mapserver_conveyor = MapServerObject()
+            self.object_array.map_server_object.append(self.mapserver_conveyor)
+            self.conveyor = YCBObject(name="101_conveyor", abilities={"soakable": {}, "cleaningTool": {}})
+            self.env.simulator.import_object(self.conveyor)
+            self.mapserver_conveyor.name = f"{self.ns}_conveyor"
+            self.mapserver_conveyor.target = False
+
+        # else:
+        self.conveyor.set_position(pose)
+        self.conveyor.set_orientation(orientation)
+        # pose_msg = Pose()
+        x,y,z = self.conveyor.get_position()
+        self.mapserver_conveyor.pose.position.x = x
+        self.mapserver_conveyor.pose.position.y = y
+        self.mapserver_conveyor.pose.position.z = z
+        x,y,z,w = self.conveyor.get_orientation()
+        self.mapserver_conveyor.pose.orientation.x = x
+        self.mapserver_conveyor.pose.orientation.y = y
+        self.mapserver_conveyor.pose.orientation.z = z
+        self.mapserver_conveyor.pose.orientation.w = w
+
+
     def run(self):
+        i = 0
         last = rospy.Time.now()
         '''
         ctr = 0
@@ -123,6 +166,23 @@ class SimNode:
         init_j2n6s300_joint_6 = 0
         '''
         while not rospy.is_shutdown():
+            try:
+                self.object_array.header.seq = i
+                self.object_array.header.stamp = rospy.Time.now()
+                self.object_array.header.frame_id = "world"
+                i+=1
+                x,y,z = self.conveyor.get_position()
+                self.object_array.map_server_object[0].pose.position.x = x
+                self.object_array.map_server_object[0].pose.position.y = y
+                self.object_array.map_server_object[0].pose.position.z = z
+                x,y,z,w = self.conveyor.get_orientation()
+                self.object_array.map_server_object[0].pose.orientation.x = x
+                self.object_array.map_server_object[0].pose.orientation.y = y
+                self.object_array.map_server_object[0].pose.orientation.z = z
+                self.object_array.map_server_object[0].pose.orientation.w = w
+                self.map_server_pub.publish(self.object_array)
+            except Exception as e:
+                print(e)
             #print("[mobiman_jackal_jaco::run] ctr: " + str(ctr))
 
             now = rospy.Time.now()

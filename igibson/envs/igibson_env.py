@@ -89,6 +89,19 @@ class iGibsonEnv(BaseEnv):
         print("[igibson_env::iGibsonEnv::__init__] START")
         
         self.ros_node_init = ros_node_init
+        # Set initial command
+        self.cmd_init_base = [0.0, 0.0]
+        self.cmd_base = self.cmd_init_base
+        self.cmd_init_j1 = 0.0
+        self.cmd_init_j2 = 2.9
+        self.cmd_init_j3 = 1.3
+        self.cmd_init_j4 = 4.2
+        self.cmd_init_j5 = 1.4
+        self.cmd_init_j6 = 0.0
+        self.cmd_init_arm = [self.cmd_init_j1, self.cmd_init_j2, self.cmd_init_j3, self.cmd_init_j4, self.cmd_init_j5, self.cmd_init_j6]
+        self.cmd_arm = self.cmd_init_arm
+        self.cmd = self.cmd_base + self.cmd_arm
+
         if not self.ros_node_init:
             rospy.init_node("igibson_ros_" + str(ros_node_id), anonymous=True)
 
@@ -113,19 +126,8 @@ class iGibsonEnv(BaseEnv):
             print("[igibson_env::iGibsonEnv::__init__] ns: " + str(self.ns))
             print("============================================")
 
-            # Set initial command
-            self.cmd_init_base = [0.0, 0.0]
-            self.cmd_base = self.cmd_init_base
+            
 
-            self.cmd_init_j1 = 0.0
-            self.cmd_init_j2 = 2.9
-            self.cmd_init_j3 = 1.3
-            self.cmd_init_j4 = 4.2
-            self.cmd_init_j5 = 1.4
-            self.cmd_init_j6 = 0.0
-            self.cmd_init_arm = [self.cmd_init_j1, self.cmd_init_j2, self.cmd_init_j3, self.cmd_init_j4, self.cmd_init_j5, self.cmd_init_j6]
-            self.cmd_arm = self.cmd_init_arm
-            self.cmd = self.cmd_base + self.cmd_arm
 
             self.last_update_base = rospy.Time.now()
             self.last_update_arm = rospy.Time.now()
