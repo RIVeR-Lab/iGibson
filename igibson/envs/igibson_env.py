@@ -34,7 +34,7 @@ from cv_bridge import CvBridge
 import rospkg
 import rospy
 import tf
-from geometry_msgs.msg import PoseStamped, Twist
+from geometry_msgs.msg import PoseStamped, Pose, Twist
 from nav_msgs.msg import Odometry
 from sensor_msgs import point_cloud2 as pc2
 from sensor_msgs.msg import CameraInfo
@@ -46,9 +46,12 @@ from trajectory_msgs.msg import JointTrajectory
 
 #from ocs2_msgs.msg import collision_info
 #from ocs2_msgs.srv import setDiscreteActionDRL, setContinuousActionDRL, setBool, setBoolResponse, setMPCActionResult, setMPCActionResultResponse
-
+from igibson.objects.ycb_object import YCBObject
+from igibson.objects.ycb_object import StatefulObject
+# from igibson.envs.igibson_env import iGibsonEnv
 import actionlib
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
+from gazebo_msgs.msg import ModelStates
 
 log = logging.getLogger(__name__)
 
@@ -72,6 +75,7 @@ class iGibsonEnv(BaseEnv):
         use_pb_gui=False,
         ros_node_init=False,
         ros_node_id=0,
+        objects=None,
     ):
         """
         :param config_file: config_file path
@@ -128,7 +132,8 @@ class iGibsonEnv(BaseEnv):
 
             
 
-
+            
+            
             self.last_update_base = rospy.Time.now()
             self.last_update_arm = rospy.Time.now()
             
@@ -141,7 +146,7 @@ class iGibsonEnv(BaseEnv):
             self.gt_pose_pub = rospy.Publisher(self.ns + "ground_truth_odom", Odometry, queue_size=10)
             self.camera_info_pub = rospy.Publisher(self.ns + "gibson_ros/camera/depth/camera_info", CameraInfo, queue_size=10)
             self.joint_states_pub = rospy.Publisher(self.ns + "gibson_ros/joint_states", JointState, queue_size=10)
-            
+            self.model_state_pub = rospy.Publisher(self.ns+ "model_states", ModelStates, queue_size=10)
             # Set Subscribers
             rospy.Subscriber(self.ns + "mobile_base_controller/cmd_vel", Twist, self.cmd_base_callback)
             rospy.Subscriber(self.ns + "arm_controller/cmd_pos", JointTrajectory, self.cmd_arm_callback)
@@ -165,12 +170,45 @@ class iGibsonEnv(BaseEnv):
               use_pb_gui=use_pb_gui,
         )
         self.automatic_reset = automatic_reset
-
+        self.objects = objects
+        self.spawned_objects = []
+        self.create_objects(self.objects)
+        self.transform_timer = rospy.Timer(rospy.Duration(1/100), self.timer_transform)
+        # rospy.spin()
         print("[igibson_env::iGibsonEnv::__init__] END")
         
+        # self.transform_timer.start()
         #print("[igibson_env::iGibsonEnv::__init__] DEBUG INF")
         #while 1:
         #    continue
+
+    def create_objects(self, objects):
+        for key,val in objects.items():
+            pointer = YCBObject(name=val, abilities={"soakable": {}, "cleaningTool": {}})
+            self.simulator.import_object(pointer)
+            self.spawned_objects.append(pointer)
+            self.spawned_objects[-1].set_position([3,3,0.2])
+            self.spawned_objects[-1].set_orientation([0.7071068, 0, 0, 0.7071068])
+
+
+    def timer_transform(self, timer):
+        # print("Works?")
+        model_state_msg = ModelStates()
+        pose = Pose()
+        for obj, dict in zip(self.spawned_objects, self.objects.items()):
+            # self.br.sendTransform(obj.get_position(), obj.get_orientation(), rospy.Time.now(), f'{self.ns}{dict[0]}', 'world')
+            model_state_msg.name.append(dict[0])
+            x,y,z = obj.get_position()
+            pose.position.x = x
+            pose.position.y = y
+            pose.position.z = z
+            x,y,z,w = obj.get_orientation()
+            pose.orientation.x = x
+            pose.orientation.y = y
+            pose.orientation.z = z
+            pose.orientation.w = w
+            model_state_msg.pose.append(pose)
+        self.model_state_pub.publish(model_state_msg)
 
     def cmd_base_callback(self, data):
         self.cmd_base = [data.linear.x, -data.angular.z]

@@ -28,6 +28,7 @@ from igibson.objects.ycb_object import YCBObject
 from igibson.objects.ycb_object import StatefulObject
 from igibson.envs.igibson_env import iGibsonEnv
 from igibson.utils.utils import parse_config
+import tf
 from mobiman_simulation.msg import MapServerObject, MapServerObjectArray
 
 class SimNode:
@@ -116,7 +117,7 @@ class SimNode:
         self.env.reset()
         self.tp_time = None
         self.mapserver_conveyor = None
-
+        self.broadcaster = tf.TransformBroadcaster()
         #print("[SimNode::__init__] DEBUG_INF")
         #while(1):
         #    continue
@@ -172,15 +173,16 @@ class SimNode:
                 self.object_array.header.frame_id = "world"
                 i+=1
                 x,y,z = self.conveyor.get_position()
-                self.object_array.map_server_object[0].pose.position.x = x
-                self.object_array.map_server_object[0].pose.position.y = y
-                self.object_array.map_server_object[0].pose.position.z = z
-                x,y,z,w = self.conveyor.get_orientation()
-                self.object_array.map_server_object[0].pose.orientation.x = x
-                self.object_array.map_server_object[0].pose.orientation.y = y
-                self.object_array.map_server_object[0].pose.orientation.z = z
-                self.object_array.map_server_object[0].pose.orientation.w = w
-                self.map_server_pub.publish(self.object_array)
+                # self.object_array.map_server_object[0].pose.position.x = x
+                # self.object_array.map_server_object[0].pose.position.y = y
+                # self.object_array.map_server_object[0].pose.position.z = z
+                a,b,c,w = self.conveyor.get_orientation()
+                # self.object_array.map_server_object[0].pose.orientation.x = x
+                # self.object_array.map_server_object[0].pose.orientation.y = y
+                # self.object_array.map_server_object[0].pose.orientation.z = z
+                # self.object_array.map_server_object[0].pose.orientation.w = w
+                # self.map_server_pub.publish(self.object_array)
+                self.broadcaster.sendTransform((x, y, z), (a, b, c, w), rospy.Time.now(), f'conveyor_belt', 'world')
             except Exception as e:
                 print(e)
             #print("[mobiman_jackal_jaco::run] ctr: " + str(ctr))

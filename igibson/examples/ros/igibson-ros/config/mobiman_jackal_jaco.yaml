@@ -69,6 +69,8 @@ image_width: 512
 image_height: 512
 vertical_fov: 90
 
+objects: {conveyor_belt: 101_conveyor}
+
 # depth
 #depth_low: 0.8
 #depth_high: 3.5
