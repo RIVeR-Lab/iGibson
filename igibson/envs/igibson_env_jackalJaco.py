@@ -331,15 +331,15 @@ class iGibsonEnv(BaseEnv):
     DESCRIPTION: TODO...
     '''
     def callback_update(self, event):
-        print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] START")
+        #print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] START")
 
         world_frame_name = self.ns + self.config_mobiman.world_frame_name
         goal_frame_name = self.ns + self.config_mobiman.goal_frame_name
         #ee_frame_name = self.ns + self.config_mobiman.ee_frame_name
         #robot_frame_name = self.ns + self.config_mobiman.robot_frame_name
 
-        print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] world_frame_name: " + str(world_frame_name))
-        print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] goal_frame_name: " + str(goal_frame_name))
+        #print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] world_frame_name: " + str(world_frame_name))
+        #print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] goal_frame_name: " + str(goal_frame_name))
         #print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] ee_frame_name: " + str(ee_frame_name))
         #print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] robot_frame_name: " + str(robot_frame_name))
 
@@ -436,7 +436,7 @@ class iGibsonEnv(BaseEnv):
 
         self.callback_update_flag = True
 
-        print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] END")
+        #print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] END")
 
     '''
     DESCRIPTION: TODO...
@@ -567,7 +567,7 @@ class iGibsonEnv(BaseEnv):
     DESCRIPTION: TODO... Update arm data
     '''
     def update_arm_data(self):
-        print("[igibson_env_jackalJaco::iGibsonEnv::update_arm_data] START " )
+        #print("[igibson_env_jackalJaco::iGibsonEnv::update_arm_data] START " )
         
         #link_names = self.robots[0].get_link_names()
         #base_pos, base_quat = self.robots[0].get_base_link_position_orientation()
