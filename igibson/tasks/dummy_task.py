@@ -19,6 +19,8 @@ class DummyTask(BaseTask):
 
         :param env: environment instance
         """
+        print("[dummy_task::DummyTask::reset_scene] START")
+        print("[dummy_task::DummyTask::reset_scene] END")
         return
 
     def reset_agent(self, env):
@@ -27,6 +29,8 @@ class DummyTask(BaseTask):
 
         :param env: environment instance
         """
+        print("[dummy_task::DummyTask::reset_agent] START")
+        print("[dummy_task::DummyTask::reset_agent] END")
         return
 
     def get_task_obs(self, env):

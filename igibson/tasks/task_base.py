@@ -43,13 +43,18 @@ class BaseTask:
         return
 
     def reset(self, env):
+        print("[task_base::BaseTask::reset] START")
+
         self.reset_scene(env)
         self.reset_agent(env)
         self.reset_variables(env)
+        
         for reward_function in self.reward_functions:
             reward_function.reset(self, env)
         for termination_condition in self.termination_conditions:
             termination_condition.reset(self, env)
+
+        print("[task_base::BaseTask::reset] START")
 
     def get_reward(self, env, collision_links=[], action=None, info={}):
         """

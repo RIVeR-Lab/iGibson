@@ -310,12 +310,13 @@ def main(selection="user", headless=False, short_exec=False):
             env = iGibsonEnv(
                 config_file=igibson_config_path,
                 mode=mode,
-                action_timestep=1 / 10.0,
-                physics_timestep=1 / 120.0,
+                action_timestep=action_timestep,
+                physics_timestep=physics_timestep,
                 ros_node_id=rank,
                 use_pb_gui=use_pb_gui,
+                automatic_reset=True,
                 data_folder_path=data_folder_path,
-                objects=objects,
+                objects=objects                
             )
             env.seed(seed + rank) # type: ignore
             return env
@@ -334,7 +335,7 @@ def main(selection="user", headless=False, short_exec=False):
         print("[mobiman_drl_training::__main__] n_actions: " + str(n_actions))
 
         
-        policy_kwargs = dict(activation_fn=th.nn.ReLU, net_arch=[dict(pi=[400, 300], vf=[400, 300])])
+        policy_kwargs = dict(activation_fn=th.nn.ReLU, net_arch=dict(pi=[400, 300], vf=[400, 300]))
         model = PPO(
             "MlpPolicy", 
             env, 
