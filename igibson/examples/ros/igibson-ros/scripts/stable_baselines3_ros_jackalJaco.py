@@ -312,6 +312,7 @@ def main(selection="user", headless=False, short_exec=False):
                 mode=mode,
                 action_timestep=action_timestep,
                 physics_timestep=physics_timestep,
+                init_ros_node=True,
                 ros_node_id=rank,
                 use_pb_gui=use_pb_gui,
                 automatic_reset=True,
@@ -327,6 +328,10 @@ def main(selection="user", headless=False, short_exec=False):
     # Set multi-process
     env = SubprocVecEnv([make_env(i) for i in range(num_environments)])
     env = VecMonitor(env)
+
+    #print("[stable_baselines3_ros_jackalJaco::main] DEBUG_INF")
+    #while 1:
+    #    continue
 
     # Set learning model
     if observation_space_type == "mobiman_FC":

@@ -9,8 +9,11 @@ import numpy as np
 import pybullet as p
 import pandas as pd
 import gc
+import pathlib
+import pickle
 from cv_bridge import CvBridge
 from transforms3d.euler import euler2quat
+from squaternion import Quaternion
 from collections import OrderedDict
 
 #from igibson import ros_path
@@ -35,13 +38,14 @@ from igibson.utils.utils import quatToXYZW
 import rospkg
 import rospy
 import tf
+import tf.transformations
 from std_msgs.msg import Header
-from geometry_msgs.msg import PoseStamped, Twist, Pose
+from geometry_msgs.msg import PoseStamped, Twist, Pose, Point
 from nav_msgs.msg import Odometry, OccupancyGrid
 from sensor_msgs import point_cloud2 as pc2
 from sensor_msgs.msg import CameraInfo, Image, PointCloud2, JointState
 from trajectory_msgs.msg import JointTrajectory
-from visualization_msgs.msg import MarkerArray
+from visualization_msgs.msg import MarkerArray, Marker
 
 from ocs2_msgs.msg import collision_info # type: ignore 
 from ocs2_msgs.srv import setDiscreteActionDRL, setContinuousActionDRL, setBool, setBoolResponse, setMPCActionResult, setMPCActionResultResponse # type: ignore
@@ -72,7 +76,7 @@ class iGibsonEnv(BaseEnv):
         device_idx=0,
         automatic_reset=False,
         use_pb_gui=False,
-        ros_node_init=False,
+        init_ros_node=False,
         ros_node_id=0,
         data_folder_path="",
         objects=None
@@ -95,15 +99,20 @@ class iGibsonEnv(BaseEnv):
 
         ### NUA TODO: DEPRECATE ONE OF THE TWO CONFIG FILES!!!
         ### Initialize Config Parameters
+        print("[igibson_env_jackalJaco::iGibsonEnv::__init__] START CONFIG")
         config_igibson_data = yaml.load(open(config_file, "r"), Loader=yaml.FullLoader)
         self.config_igibson = parse_config(config_igibson_data)
         
         self.config_mobiman = Config(data_folder_path=data_folder_path) # type: ignore
+        print("[igibson_env_jackalJaco::iGibsonEnv::__init__] END CONFIG")
 
         ### Initialize Variables
         self.init_flag = False
         self.init_goal_flag = False
         self.callback_update_flag = False
+        self.episode_done = False
+        self.reached_goal = False
+        self.episode_num = 1
         self.step_num = 1
         self.total_step_num = 1
         self.total_collisions = 0
@@ -113,9 +122,10 @@ class iGibsonEnv(BaseEnv):
         self.total_mpc_exit = 0
         self.total_target = 0
         self.total_time_horizon = 0
+        self.total_last_step_distance = 0
+        self.step_action = None
         self.step_reward = 0.0
         self.episode_reward = 0.0
-        self.step_action = None
         self.total_mean_episode_reward = 0.0
         #self.goal_status = Bool()
         #self.goal_status.data = False
@@ -158,6 +168,10 @@ class iGibsonEnv(BaseEnv):
         self.cmd_arm = self.cmd_init_arm
         self.cmd = self.cmd_base + self.cmd_arm
 
+        # Env objects
+        self.objects = objects
+        self.spawned_objects = []
+
         ## Set Observation-Action-Reward data filename
         self.oar_data_file = data_folder_path + "oar_data.csv"
 
@@ -165,10 +179,15 @@ class iGibsonEnv(BaseEnv):
         #while 1:
         #    continue
         
-        ### Initialize ROS node
+        ## Set namespace
+        self.init_ros_node = init_ros_node
+        self.ros_node_id = ros_node_id
         robot_ns = self.config_igibson["robot_ns"]
         self.ns = robot_ns + "_" + str(ros_node_id) + "/"
-        self.ros_node_init = ros_node_init
+
+        #self.init_ros_env(self, ros_node_id=0, init_flag=True)
+
+        '''
         if not self.ros_node_init:
             rospy.init_node("igibson_ros_" + str(ros_node_id), anonymous=True)
 
@@ -203,7 +222,7 @@ class iGibsonEnv(BaseEnv):
             #self.goal_status_pub = rospy.Publisher(self.config_mobiman.goal_status_msg_name, Bool, queue_size=1)
             #self.filtered_laser_pub = rospy.Publisher(self.robot_namespace + '/laser/scan_filtered', LaserScan, queue_size=1)
             self.debug_visu_pub = rospy.Publisher(self.ns + 'debug_visu', MarkerArray, queue_size=1)
-            self.model_state_pub = rospy.Publisher(self.ns+ "model_states", ModelStates, queue_size=10)
+            self.model_state_pub = rospy.Publisher(self.ns + "model_states", ModelStates, queue_size=10)
 
             # Clients
 
@@ -214,7 +233,9 @@ class iGibsonEnv(BaseEnv):
             #print("[igibson_env_jackalJaco::iGibsonEnv::__init__] DEBUG_INF")
             #while 1:
             #    continue
+        '''
 
+        print("[igibson_env_jackalJaco::iGibsonEnv::__init__] BEFORE super")
         super(iGibsonEnv, self).__init__(
               config_file=config_file,
               scene_id=scene_id,
@@ -227,18 +248,34 @@ class iGibsonEnv(BaseEnv):
               use_pb_gui=use_pb_gui,
         )
         self.automatic_reset = automatic_reset
+        self.init_flag = True
 
+        '''
         # Timers
-        self.objects = objects
-        self.spawned_objects = []
         self.create_objects(self.objects)
-        # print("[igibson_env::iGibsonEnv::__init__] END")
-        self.transform_timer = rospy.Timer(rospy.Duration(1/100), self.timer_transform)
+        self.transform_timer = rospy.Timer(rospy.Duration(0.01), self.timer_transform)
         
         self.timer = rospy.Timer(rospy.Duration(0.05), self.callback_update) # type: ignore
+
+        # Wait for topics
+        print("[igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.selfcoldistance_msg_name) + "...")
+        rospy.wait_for_message(self.ns + self.config_mobiman.selfcoldistance_msg_name, collision_info)
+
+        print("[igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.extcoldistance_base_msg_name) + "...")
+        rospy.wait_for_message(self.ns + self.config_mobiman.extcoldistance_base_msg_name, collision_info)
+
+        print("[igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.callback_extcoldistance_arm) + "...")
+        rospy.wait_for_message(self.ns + self.config_mobiman.callback_extcoldistance_arm, collision_info)
+
+        print("[igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.pointsonrobot_msg_name) + "...")
+        rospy.wait_for_message(self.ns + self.config_mobiman.pointsonrobot_msg_name, MarkerArray)
+
         print("[igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting callback_update_flag...")
         while not self.callback_update_flag:
             continue
+        
+        self.init_flag = True
+        '''
 
         print("[igibson_env_jackalJaco::iGibsonEnv::__init__] END")
         
@@ -246,6 +283,85 @@ class iGibsonEnv(BaseEnv):
         #while 1:
         #    continue
 
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def init_ros_env(self, ros_node_id=0, init_flag=True):
+        print("[igibson_env_jackalJaco::iGibsonEnv::init_ros_env] START")
+        if init_flag:
+            print("[igibson_env_jackalJaco::iGibsonEnv::init_ros_env] ROS entered to the chat!")
+            rospy.init_node("igibson_ros_" + str(ros_node_id), anonymous=True)
+
+            self.listener = tf.TransformListener()
+
+            # ROS variables
+            self.last_update_base = rospy.Time.now()
+            self.last_update_arm = rospy.Time.now()
+            self.bridge = CvBridge()
+            self.br = tf.TransformBroadcaster()
+
+            # Subscribers
+            rospy.Subscriber(self.ns + self.config_mobiman.base_control_msg_name, Twist, self.cmd_base_callback)
+            rospy.Subscriber(self.ns + self.config_mobiman.arm_control_msg_name, JointTrajectory, self.cmd_arm_callback)
+
+            #rospy.Subscriber(self.ns + self.config_mobiman.target_msg_name, MarkerArray, self.callback_target)
+            rospy.Subscriber(self.ns + self.config_mobiman.occgrid_msg_name, OccupancyGrid, self.callback_occgrid)
+            rospy.Subscriber(self.ns + self.config_mobiman.selfcoldistance_msg_name, collision_info, self.callback_selfcoldistance)
+            rospy.Subscriber(self.ns + self.config_mobiman.extcoldistance_base_msg_name, collision_info, self.callback_extcoldistance_base)
+            rospy.Subscriber(self.ns + self.config_mobiman.extcoldistance_arm_msg_name, collision_info, self.callback_extcoldistance_arm) # type: ignore
+            rospy.Subscriber(self.ns + self.config_mobiman.pointsonrobot_msg_name, MarkerArray, self.callback_pointsonrobot)
+
+            # Publishers
+            self.image_pub = rospy.Publisher(self.ns + self.config_mobiman.rgb_image_msg_name, Image, queue_size=10)
+            self.depth_pub = rospy.Publisher(self.ns + self.config_mobiman.depth_image_msg_name, Image, queue_size=10)
+            self.depth_raw_pub = rospy.Publisher(self.ns + self.config_mobiman.depth_image_raw_msg_name, Image, queue_size=10)
+            self.camera_info_pub = rospy.Publisher(self.ns + self.config_mobiman.camera_info_msg_name, CameraInfo, queue_size=10)
+            self.lidar_pub = rospy.Publisher(self.ns + self.config_mobiman.lidar_msg_name, PointCloud2, queue_size=10)
+            self.odom_pub = rospy.Publisher(self.ns + self.config_mobiman.odom_msg_name, Odometry, queue_size=10)
+            self.odom_gt_pub = rospy.Publisher(self.ns + self.config_mobiman.odom_msg_name, Odometry, queue_size=10)
+            self.joint_states_pub = rospy.Publisher(self.ns + self.config_mobiman.arm_state_msg_name, JointState, queue_size=10)
+            #self.goal_status_pub = rospy.Publisher(self.config_mobiman.goal_status_msg_name, Bool, queue_size=1)
+            #self.filtered_laser_pub = rospy.Publisher(self.robot_namespace + '/laser/scan_filtered', LaserScan, queue_size=1)
+            self.debug_visu_pub = rospy.Publisher(self.ns + 'debug_visu', MarkerArray, queue_size=1)
+            self.model_state_pub = rospy.Publisher(self.ns + "model_states", ModelStates, queue_size=10)
+
+            # Clients
+
+            # Services
+            rospy.Service(self.ns + 'set_mrt_ready', setBool, self.service_set_mrt_ready)
+            rospy.Service(self.ns + 'set_mpc_action_result', setMPCActionResult, self.service_set_mpc_action_result)
+
+            # Timers
+            self.create_objects(self.objects)
+            self.transform_timer = rospy.Timer(rospy.Duration(0.01), self.timer_transform)
+            
+            self.timer = rospy.Timer(rospy.Duration(0.05), self.callback_update) # type: ignore
+
+            # Wait for topics
+            print("[igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.selfcoldistance_msg_name) + "...")
+            rospy.wait_for_message(self.ns + self.config_mobiman.selfcoldistance_msg_name, collision_info)
+
+            print("[igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.extcoldistance_base_msg_name) + "...")
+            rospy.wait_for_message(self.ns + self.config_mobiman.extcoldistance_base_msg_name, collision_info)
+
+            print("[igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.extcoldistance_arm_msg_name) + "...")
+            rospy.wait_for_message(self.ns + self.config_mobiman.extcoldistance_arm_msg_name, collision_info)
+
+            print("[igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.pointsonrobot_msg_name) + "...")
+            rospy.wait_for_message(self.ns + self.config_mobiman.pointsonrobot_msg_name, MarkerArray)
+
+            print("[igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting callback_update_flag...")
+            while not self.callback_update_flag:
+                continue
+
+            #print("[igibson_env_jackalJaco::iGibsonEnv::__init__] DEBUG_INF")
+            #while 1:
+            #    continue
+        print("[igibson_env_jackalJaco::iGibsonEnv::init_ros_env] END")
+
+    '''
+    DESCRIPTION: TODO...
+    '''
     def create_objects(self, objects):
         for key,val in objects.items():
             pointer = YCBObject(name=val, abilities={"soakable": {}, "cleaningTool": {}})
@@ -254,8 +370,11 @@ class iGibsonEnv(BaseEnv):
             self.spawned_objects[-1].set_position([3,3,0.2])
             self.spawned_objects[-1].set_orientation([0.7071068, 0, 0, 0.7071068])
 
+    '''
+    DESCRIPTION: TODO...
+    '''
     def timer_transform(self, timer):
-        # print("Works?")
+        #print("[igibson_env_jackalJaco::iGibsonEnv::timer_transform] START")
         model_state_msg = ModelStates()
         pose = Pose()
         for obj, dict in zip(self.spawned_objects, self.objects.items()):
@@ -272,6 +391,7 @@ class iGibsonEnv(BaseEnv):
             pose.orientation.w = w
             model_state_msg.pose.append(pose)
         self.model_state_pub.publish(model_state_msg)
+        #print("[igibson_env_jackalJaco::iGibsonEnv::timer_transform] END")
 
     '''
     DESCRIPTION: TODO...
@@ -335,19 +455,17 @@ class iGibsonEnv(BaseEnv):
     def callback_update(self, event):
         #print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] START")
 
-        world_frame_name = self.ns + self.config_mobiman.world_frame_name
         goal_frame_name = self.ns + self.config_mobiman.goal_frame_name
         #ee_frame_name = self.ns + self.config_mobiman.ee_frame_name
         #robot_frame_name = self.ns + self.config_mobiman.robot_frame_name
 
-        #print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] world_frame_name: " + str(world_frame_name))
+        #print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] world_frame_name: " + str(self.config_mobiman.world_frame_name))
         #print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] goal_frame_name: " + str(goal_frame_name))
         #print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] ee_frame_name: " + str(ee_frame_name))
         #print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] robot_frame_name: " + str(robot_frame_name))
 
         self.update_robot_data()
         self.update_arm_data()
-
         self.update_ros_topics()
 
         '''
@@ -368,75 +486,128 @@ class iGibsonEnv(BaseEnv):
             ...           
         '''
 
+        #a = False
+        #b = False
+        #c = False
+
         try:
-            (self.trans_goal_wrt_world, self.rot_goal_wrt_world) = self.listener.lookupTransform(world_frame_name, goal_frame_name, rospy.Time(0))
+            (self.trans_goal_wrt_world, self.rot_goal_wrt_world) = self.listener.lookupTransform(target_frame=self.config_mobiman.world_frame_name, source_frame=goal_frame_name, time=rospy.Time(0))
+
+            trans_robot_wrt_world = tf.transformations.translation_matrix([self.robot_data["x"], self.robot_data["y"], self.robot_data["z"]])
+            quat_robot_wrt_world = tf.transformations.quaternion_matrix([self.robot_data["qx"], self.robot_data["qy"], self.robot_data["qz"], self.robot_data["qw"]])
+            tf_robot_wrt_world = tf.transformations.concatenate_matrices(trans_robot_wrt_world, quat_robot_wrt_world)
+
+            #print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] CALCULATED trans_robot_wrt_world")
+            #print(trans_robot_wrt_world)
+            #print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] CALCULATED tf_robot_wrt_world")
+            #print(tf_robot_wrt_world)
+            #print("------")
+
+            trans_ee_wrt_world = tf.transformations.translation_matrix([self.arm_data["x"], self.arm_data["y"], self.arm_data["z"]])
+            quat_ee_wrt_world = tf.transformations.quaternion_matrix([self.arm_data["qx"], self.arm_data["qy"], self.arm_data["qz"], self.arm_data["qw"]])
+            tf_ee_wrt_world = tf.transformations.concatenate_matrices(trans_ee_wrt_world, quat_ee_wrt_world)
             
-            # Create a Transform objects
-            robot_transform = tf.Transform()
-            ee_transform = tf.Transform()
-            goal_transform = tf.Transform()
+            trans_goal_wrt_world = tf.transformations.translation_matrix(self.trans_goal_wrt_world)
+            quat_goal_wrt_world = tf.transformations.quaternion_matrix(self.rot_goal_wrt_world)
+            tf_goal_wrt_world = tf.transformations.concatenate_matrices(trans_goal_wrt_world, quat_goal_wrt_world)
 
-            # Set the translation (position)
-            robot_transform.translation.x = self.robot_data["x"]
-            robot_transform.translation.y = self.robot_data["y"]
-            robot_transform.translation.z = self.robot_data["z"]
-            
-            ee_transform.translation.x = self.arm_data["x"]
-            ee_transform.translation.y = self.arm_data["y"]
-            ee_transform.translation.z = self.arm_data["z"]
-
-            goal_transform.translation.x = self.trans_goal_wrt_world.x
-            goal_transform.translation.y = self.trans_goal_wrt_world.y
-            goal_transform.translation.z = self.trans_goal_wrt_world.z
-
-            # Set the rotation (quaternion)
-            robot_transform.rotation.x = self.robot_data["qx"]
-            robot_transform.rotation.y = self.robot_data["qy"]
-            robot_transform.rotation.z = self.robot_data["qz"]
-            robot_transform.rotation.w = self.robot_data["qw"]
-
-            ee_transform.rotation.x = self.arm_data["qx"]
-            ee_transform.rotation.y = self.arm_data["qy"]
-            ee_transform.rotation.z = self.arm_data["qz"]
-            ee_transform.rotation.w = self.arm_data["qw"]
-
-            goal_transform.rotation.x = self.rot_goal_wrt_world.x
-            goal_transform.rotation.y = self.rot_goal_wrt_world.y
-            goal_transform.rotation.z = self.rot_goal_wrt_world.z
-            goal_transform.rotation.w = self.rot_goal_wrt_world.w
-
-            # Create transform objects
-            #end_effector_transform = tf.Transform(end_effector_wrt_world)
-            #base_transform = tf.Transform(base_wrt_world)
+            #print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] CALCULATED trans_goal_wrt_world")
+            #print(trans_goal_wrt_world)
+            #print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] CALCULATED tf_goal_wrt_world")
+            #print(tf_goal_wrt_world)
+            #print("------")
 
             # Calculate the transformation from end effector wrt base
-            self.transform_goal_wrt_robot = robot_transform * goal_transform
-            self.transform_goal_wrt_ee = ee_transform * goal_transform
+            tf_world_wrt_robot = tf.transformations.inverse_matrix(tf_robot_wrt_world)
+            transform_goal_wrt_robot = tf.transformations.concatenate_matrices(tf_world_wrt_robot, tf_goal_wrt_world)
             
+            tf_world_wrt_ee = tf.transformations.inverse_matrix(tf_ee_wrt_world)
+            transform_goal_wrt_ee = tf.transformations.concatenate_matrices(tf_world_wrt_ee, tf_goal_wrt_world)
+            
+            '''
+            print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] CALCULATED tf_robot_wrt_world")
+            print(tf_robot_wrt_world)
+            print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] CALCULATED tf_world_wrt_robot")
+            print(tf_world_wrt_robot)
+            print("------")
+            print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] CALCULATED transform_goal_wrt_robot")
+            print(transform_goal_wrt_robot)
+            print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] CALCULATED transform_goal_wrt_ee")
+            print(transform_goal_wrt_ee)
+            print("------")
+            '''
+
+            self.trans_goal_wrt_robot = tf.transformations.translation_from_matrix(transform_goal_wrt_robot)
+            self.rot_goal_wrt_robot = tf.transformations.quaternion_from_matrix(transform_goal_wrt_robot)
+            
+            self.trans_goal_wrt_ee = tf.transformations.translation_from_matrix(transform_goal_wrt_ee)
+            self.rot_goal_wrt_ee = tf.transformations.quaternion_from_matrix(transform_goal_wrt_ee)
+            
+            self.callback_update_flag = True
+
+            #a = True
+            #print("AAAAAAAAAAAAAAAAAAAAAAAAAAa")
             self.update_goal_data()
             self.update_goal_data_wrt_robot()
             self.update_goal_data_wrt_ee()
         except Exception as e2:
-            #print(e2)
+            #print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] " + str(e2))
             ...
-        
+
         '''
         try:
             (self.trans_goal_wrt_robot, self.rot_goal_wrt_robot) = self.listener.lookupTransform(robot_frame_name, goal_frame_name, rospy.Time(0))
-            self.update_goal_data_wrt_robot()
+            #self.update_goal_data_wrt_robot()
+            print("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBb")
+            b = True
         except Exception as e3:
-            #print(e3)
+            print(e3)
             ...
         
         try:
             (self.trans_goal_wrt_ee, self.rot_goal_wrt_ee) = self.listener.lookupTransform(ee_frame_name, goal_frame_name, rospy.Time(0))
-            self.update_goal_data_wrt_ee()
+            #self.update_goal_data_wrt_ee()
+            c = True
+            print("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCcc")
         except Exception as e4:
-            #print(e4)
+            print(e4)
             ...
-        '''
 
         self.callback_update_flag = True
+
+        if a and b and c:
+            print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] CALCULATED trans_goal_wrt_robot")
+            print(trans_goal_wrt_robot)
+
+            print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] MEASURED trans_goal_wrt_robot")
+            print(self.trans_goal_wrt_robot)
+            print("-----------")
+
+            print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] CALCULATED quat_goal_wrt_robot")
+            print(quat_goal_wrt_robot)
+
+            print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] MEASURED quat_goal_wrt_robot")
+            print(self.rot_goal_wrt_robot)
+            print("-----------")
+
+            print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] CALCULATED trans_goal_wrt_ee")
+            print(trans_goal_wrt_ee)
+
+            print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] MEASURED trans_goal_wrt_ee")
+            print(self.trans_goal_wrt_ee)
+            print("-----------")
+
+            print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] CALCULATED quat_goal_wrt_ee")
+            print(quat_goal_wrt_ee)
+
+            print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] MEASURED quat_goal_wrt_ee")
+            print(self.rot_goal_wrt_ee)
+            print("-----------")
+
+            print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] DEBUG_INF")
+            while 1:
+                continue
+        '''
 
         #print("[igibson_env_jackalJaco::iGibsonEnv::callback_update] END")
 
@@ -465,25 +636,27 @@ class iGibsonEnv(BaseEnv):
     DESCRIPTION: TODO...
     '''
     def client_set_action_drl(self, action, last_step_flag=False):
-        
         print("[igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] Waiting for service set_action_drl...")
         set_action_drl_service_name = self.ns + 'set_action_drl'
+        print("[igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] set_action_drl_service_name: " + str(set_action_drl_service_name))
+        print("[igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] last_step_flag: " + str(last_step_flag))
         rospy.wait_for_service(set_action_drl_service_name)
+        print("[igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] Received service set_action_drl!")
         try:
             if self.config_mobiman.action_type == 0:
-                rospy.logdebug("[igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] DISCRETE ACTION")
+                print("[igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] DISCRETE ACTION")
                 srv_set_discrete_action_drl = rospy.ServiceProxy(set_action_drl_service_name, setDiscreteActionDRL)            
                 success = srv_set_discrete_action_drl(action, self.config_mobiman.action_time_horizon).success
             else:
-                rospy.logdebug("[igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] CONTINUOUS ACTION")
+                print("[igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] CONTINUOUS ACTION")
                 srv_set_continuous_action_drl = rospy.ServiceProxy(set_action_drl_service_name, setContinuousActionDRL)
                 success = srv_set_continuous_action_drl(action, self.config_mobiman.action_time_horizon, last_step_flag, self.config_mobiman.last_step_distance_threshold).success
-
+                print("[igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] CONTINUOUS ACTION SENT!")
             if(success):
-                rospy.logdebug("[igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] Updated action: " + str(action))
+                print("[igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] Updated action: " + str(action))
             else:
                 #print("[igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] goal_pose is NOT updated!")
-                rospy.logdebug("[igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] ERROR: set_action_drl is NOT successful!")
+                print("[igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] ERROR: set_action_drl is NOT successful!")
 
             return success
 
@@ -513,6 +686,7 @@ class iGibsonEnv(BaseEnv):
         # 3: Goal reached
         # 4: Target reached
         # 5: Time-horizon reached
+        print("[igibson_env_jackalJaco::iGibsonEnv::service_set_mpc_action_result] START")
         self.mpc_action_result = req.action_result
             
         if self.mpc_action_result == 0:
@@ -521,53 +695,48 @@ class iGibsonEnv(BaseEnv):
         elif self.mpc_action_result == 1:
             self.termination_reason = 'collision'
             self.total_collisions += 1
-            self._episode_done = True
+            self.episode_done = True
         elif self.mpc_action_result == 2:
             self.termination_reason = 'rollover'
             self.total_rollover += 1
-            self._episode_done = True
+            self.episode_done = True
         elif self.mpc_action_result == 3:
             self.termination_reason = 'goal'
             self.total_goal += 1
-            self._reached_goal = True
-            self._episode_done = True
+            self.reached_goal = True
+            self.episode_done = True
         elif self.mpc_action_result == 4:
             self.termination_reason = 'target'
             self.total_target += 1
-            self.mpc_action_complete = True
         elif self.mpc_action_result == 5:
             self.termination_reason = 'time_horizon'
             self.total_time_horizon += 1
         
         self.model_mode = req.model_mode
-        #self.mpc_action_complete = True
+        self.mpc_action_complete = True
+        print("[igibson_env_jackalJaco::iGibsonEnv::service_set_mpc_action_result] mpc_action_result: " + str(self.mpc_action_result))
+        print("[igibson_env_jackalJaco::iGibsonEnv::service_set_mpc_action_result] END")
         return setMPCActionResultResponse(True)
 
     '''
     DESCRIPTION: TODO...
     '''
     def initialize_selfcoldistance_config(self):
-        #n_selfcoldistance = int(len(self.selfcoldistance_msg.distance))
-        ### NUA NOTE: FOR DEBUGGING!!!
-        n_selfcoldistance = 2
+        n_selfcoldistance = int(len(self.selfcoldistance_msg.distance))
         self.config_mobiman.set_selfcoldistance_config(n_selfcoldistance)
 
     '''
     DESCRIPTION: TODO...
     '''
     def initialize_extcoldistance_base_config(self):
-        #n_extcoldistance_base = int(len(self.extcoldistance_base_msg.distance))
-        ### NUA NOTE: FOR DEBUGGING!!!
-        n_extcoldistance_base = 5
+        n_extcoldistance_base = int(len(self.extcoldistance_base_msg.distance))
         self.config_mobiman.set_extcoldistance_base_config(n_extcoldistance_base)
 
     '''
     DESCRIPTION: TODO...
     '''
     def initialize_extcoldistance_arm_config(self):
-        #n_extcoldistance_arm = int(len(self.extcoldistance_arm_msg.distance))
-        ### NUA NOTE: FOR DEBUGGING!!!
-        n_extcoldistance_arm = 8
+        n_extcoldistance_arm = int(len(self.extcoldistance_arm_msg.distance))
         self.config_mobiman.set_extcoldistance_arm_config(n_extcoldistance_arm)
 
     '''
@@ -641,6 +810,27 @@ class iGibsonEnv(BaseEnv):
         self.arm_data["pitch"] = ee_rpy[1]
         self.arm_data["yaw"] = ee_rpy[2]
 
+        ## Joint positions and velocities
+        joint_names = self.config_mobiman.arm_joint_names
+        joint_states_igibson = self.robots[0].get_joint_states()
+
+        self.arm_data["joint_name"] = joint_names
+        self.arm_data["joint_pos"] = []
+        self.arm_data["joint_velo"] = []
+        for jn in joint_names:
+            jp = joint_states_igibson[jn][0]
+            jv = joint_states_igibson[jn][1]
+            #print(jn + ": " + str(jp) + ", " + str(jv))
+
+            # Normalize yaw difference to be within range of -pi to pi
+            while jp > math.pi:
+                jp -= 2*math.pi
+            while jp < -math.pi:
+                jp += 2*math.pi
+            
+            self.arm_data["joint_pos"].append(jp)
+            self.arm_data["joint_velo"].append(jv)
+
         #print("[igibson_env_jackalJaco::iGibsonEnv::update_arm_data] x: " + str(self.arm_data["x"]))
         #print("[igibson_env_jackalJaco::iGibsonEnv::update_arm_data] y: " + str(self.arm_data["y"]))
         #print("[igibson_env_jackalJaco::iGibsonEnv::update_arm_data] z: " + str(self.arm_data["z"]))
@@ -648,7 +838,15 @@ class iGibsonEnv(BaseEnv):
         #print("[igibson_env_jackalJaco::iGibsonEnv::update_arm_data] qy: " + str(self.arm_data["qy"]))
         #print("[igibson_env_jackalJaco::iGibsonEnv::update_arm_data] qz: " + str(self.arm_data["qz"]))
         #print("[igibson_env_jackalJaco::iGibsonEnv::update_arm_data] qw: " + str(self.arm_data["qw"]))
+        #print("[igibson_env_jackalJaco::iGibsonEnv::update_arm_data] joint_names: ")
+        #print(joint_names)
+        #print("[igibson_env_jackalJaco::iGibsonEnv::update_arm_data] joint_pos: ")
+        #print(self.arm_data["joint_pos"])
         #print("[igibson_env_jackalJaco::iGibsonEnv::update_arm_data] END" )
+
+        #print("[igibson_env_jackalJaco::iGibsonEnv::update_arm_data] DEBUG_INF" )
+        #while 1:
+        #    continue
 
     '''
     DESCRIPTION: TODO...
@@ -682,9 +880,9 @@ class iGibsonEnv(BaseEnv):
         self.publish_debug_visu(debug_point_data)
         '''
 
-        print("[igibson_env_jackalJaco::iGibsonEnv::update_goal_data] x: " + str(self.goal_data["x"]))
-        print("[igibson_env_jackalJaco::iGibsonEnv::update_goal_data] y: " + str(self.goal_data["y"]))
-        print("[igibson_env_jackalJaco::iGibsonEnv::update_goal_data] z: " + str(self.goal_data["z"]))
+        #print("[igibson_env_jackalJaco::iGibsonEnv::update_goal_data] x: " + str(self.goal_data["x"]))
+        #print("[igibson_env_jackalJaco::iGibsonEnv::update_goal_data] y: " + str(self.goal_data["y"]))
+        #print("[igibson_env_jackalJaco::iGibsonEnv::update_goal_data] z: " + str(self.goal_data["z"]))
         #print("[igibson_env_jackalJaco::iGibsonEnv::update_goal_data] qx: " + str(self.goal_data["qx"]))
         #print("[igibson_env_jackalJaco::iGibsonEnv::update_goal_data] qy: " + str(self.goal_data["qy"]))
         #print("[igibson_env_jackalJaco::iGibsonEnv::update_goal_data] qz: " + str(self.goal_data["qz"]))
@@ -698,8 +896,8 @@ class iGibsonEnv(BaseEnv):
     def update_goal_data_wrt_robot(self):
         #print("[igibson_env_jackalJaco::iGibsonEnv::update_goal_data_wrt_robot] START")
 
-        translation_wrt_robot = self.transform_goal_wrt_robot.translation
-        rotation_wrt_robot = self.transform_goal_wrt_robot.rotation
+        translation_wrt_robot = self.trans_goal_wrt_robot
+        rotation_wrt_robot = self.rot_goal_wrt_robot
 
         self.goal_data["x_wrt_robot"] = translation_wrt_robot[0] # type: ignore
         self.goal_data["y_wrt_robot"] = translation_wrt_robot[1] # type: ignore
@@ -732,8 +930,8 @@ class iGibsonEnv(BaseEnv):
     def update_goal_data_wrt_ee(self):
         #print("[igibson_env_jackalJaco::iGibsonEnv::update_goal_data_wrt_ee] START")
 
-        translation_wrt_ee = self.transform_goal_wrt_ee.translation
-        rotation_wrt_ee = self.transform_goal_wrt_ee.rotation
+        translation_wrt_ee = self.trans_goal_wrt_ee
+        rotation_wrt_ee = self.rot_goal_wrt_ee
 
         self.goal_data["x_wrt_ee"] = translation_wrt_ee[0] # type: ignore
         self.goal_data["y_wrt_ee"] = translation_wrt_ee[1] # type: ignore
@@ -764,38 +962,35 @@ class iGibsonEnv(BaseEnv):
     '''
     DESCRIPTION: TODO...
     '''
-    def update_target_data(self):
+    def update_target_data(self, x, y, z, roll, pitch, yaw):
         #print("[igibson_env_jackalJaco::iGibsonEnv::update_target_data] START")
-        if self.target_msg:
-            target_msg = self.target_msg
+        
+        ## NUA TODO: Generalize to multiple target points!
+        self.target_data["x"] = x
+        self.target_data["y"] = y
+        self.target_data["z"] = z
+        
+        q = Quaternion() # type: ignore
+        q = q.from_euler(roll, pitch, yaw)
+        self.target_data["qx"] = q.x
+        self.target_data["qy"] = q.y
+        self.target_data["qz"] = q.z
+        self.target_data["qw"] = q.w
 
-            ## NUA TODO: Generalize to multiple target points!
-            self.target_data["x"] = target_msg.markers[0].pose.position.x
-            self.target_data["y"] = target_msg.markers[0].pose.position.y
-            self.target_data["z"] = target_msg.markers[0].pose.position.z
-            self.target_data["qx"] = target_msg.markers[0].pose.orientation.x
-            self.target_data["qy"] = target_msg.markers[0].pose.orientation.y
-            self.target_data["qz"] = target_msg.markers[0].pose.orientation.z
-            self.target_data["qw"] = target_msg.markers[0].pose.orientation.w
+        self.target_data["roll"] = roll # type: ignore
+        self.target_data["pitch"] = pitch # type: ignore
+        self.target_data["yaw"] = pitch # type: ignore
 
-            q = Quaternion(target_msg.markers[0].pose.orientation.w, target_msg.markers[0].pose.orientation.x, target_msg.markers[0].pose.orientation.y, target_msg.markers[0].pose.orientation.z) # type: ignore
-            e = q.to_euler(degrees=False)
-            self.target_data["roll"] = e[0] # type: ignore
-            self.target_data["pitch"] = e[1] # type: ignore
-            self.target_data["yaw"] = e[2] # type: ignore
+        #print("[igibson_env_jackalJaco::iGibsonEnv::update_target_data] UPDATED.")
 
-            #print("[igibson_env_jackalJaco::iGibsonEnv::update_target_data] UPDATED.")
-
-            '''
-            p = Point()
-            p.x = self.target_data["x"]
-            p.y = self.target_data["y"]
-            p.z = self.target_data["z"]
-            debug_point_data = [p]
-            self.publish_debug_visu(debug_point_data)
-            '''
-        #else:
-        #    print("[igibson_env_jackalJaco::iGibsonEnv::update_target_data] NOT UPDATED!!!")
+        '''
+        p = Point()
+        p.x = self.target_data["x"]
+        p.y = self.target_data["y"]
+        p.z = self.target_data["z"]
+        debug_point_data = [p]
+        self.publish_debug_visu(debug_point_data)
+        '''
         #print("[igibson_env_jackalJaco::iGibsonEnv::update_target_data] END")
 
     '''
@@ -807,9 +1002,8 @@ class iGibsonEnv(BaseEnv):
         now = rospy.Time.now()
         if (now - self.last_update_base).to_sec() > 0.1:
             self.cmd_base = [0.0, 0.0]
-        #else:
-        #    cmd_base = self.cmd_base
 
+        ## Odom
         odom = [
             np.array(self.robots[0].get_position()),
             np.array(self.robots[0].get_rpy()),
@@ -863,147 +1057,12 @@ class iGibsonEnv(BaseEnv):
             jp = joint_states_igibson[jn][0]
             jv = joint_states_igibson[jn][1]
             #print(jn + ": " + str(jp) + ", " + str(jv))
-
             joint_state_msg.position.append(jp)
             joint_state_msg.velocity.append(jv)
 
         self.joint_states_pub.publish(joint_state_msg)
 
         #print("[igibson_env_jackalJaco::iGibsonEnv::update_ros_topics] END")
-
-    '''
-    DESCRIPTION: TODO...
-    '''
-    def update_ros_topics_dep(self, state):
-        print("[igibson_env_jackalJaco::iGibsonEnv::update_ros_topics_dep] START")
-
-        print("[igibson_env_jackalJaco::iGibsonEnv::load_observation_space] DEPRECATED DEBUG_INF")
-        while 1:
-            continue
-
-        if not rospy.is_shutdown():
-            rgb = (state["rgb"] * 255).astype(np.uint8)
-            normalized_depth = state["depth"].astype(np.float32)
-            depth = normalized_depth * self.sensors["vision"].depth_high
-            depth_raw_image = (state["depth"] * 1000).astype(np.uint16)
-
-            #print("[igibson_env_jackalJaco::iGibsonEnv::update_ros_topics_dep] rgb shape: " + str(len(rgb)))
-            #print("[igibson_env_jackalJaco::iGibsonEnv::update_ros_topics_dep] normalized_depth shape: " + str(len(normalized_depth)))
-            #print("[igibson_env_jackalJaco::iGibsonEnv::update_ros_topics_dep] depth shape: " + str(len(depth)))
-            #print("[igibson_env_jackalJaco::iGibsonEnv::update_ros_topics_dep] depth_raw_image shape: " + str(len(depth_raw_image)))
-
-            image_message = self.bridge.cv2_to_imgmsg(rgb, encoding="rgb8")
-            depth_message = self.bridge.cv2_to_imgmsg(depth, encoding="passthrough")
-            depth_raw_message = self.bridge.cv2_to_imgmsg(depth_raw_image, encoding="passthrough")
-
-            now = rospy.Time.now()
-
-            image_message.header.stamp = now
-            depth_message.header.stamp = now
-            depth_raw_message.header.stamp = now
-            image_message.header.frame_id = self.ns + "camera_depth_optical_frame"
-            depth_message.header.frame_id = self.ns + "camera_depth_optical_frame"
-            depth_raw_message.header.frame_id = self.ns + "camera_depth_optical_frame"
-
-            #print("[igibson_env_jackalJaco::iGibsonEnv::update_ros_topics_dep] START PUB IMAGE")
-            self.image_pub.publish(image_message)
-            self.depth_pub.publish(depth_message)
-            self.depth_raw_pub.publish(depth_raw_message)
-
-            msg = CameraInfo(
-                height=256,
-                width=256,
-                distortion_model="plumb_bob",
-                D=[0.0, 0.0, 0.0, 0.0, 0.0],
-                K=[128, 0.0, 128, 0.0, 128, 128, 0.0, 0.0, 1.0],
-                R=[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
-                P=[128, 0.0, 128, 0.0, 0.0, 128, 128, 0.0, 0.0, 0.0, 1.0, 0.0],
-            )
-            msg.header.stamp = now
-            msg.header.frame_id = self.ns + "camera_depth_optical_frame"
-            self.camera_info_pub.publish(msg)
-
-            #print("[igibson_env_jackalJaco::iGibsonEnv::update_ros_topics_dep] START LIDAR")
-            #if (self.tp_time is None) or ((self.tp_time is not None) and ((rospy.Time.now() - self.tp_time).to_sec() > 1.0)):
-            scan = state["scan"]
-            lidar_header = Header()
-            lidar_header.stamp = now
-            lidar_header.frame_id = self.ns + "scan_link"
-
-            laser_linear_range = self.sensors["scan_occ"].laser_linear_range
-            laser_angular_range = self.sensors["scan_occ"].laser_angular_range
-            min_laser_dist = self.sensors["scan_occ"].min_laser_dist
-            n_horizontal_rays = self.sensors["scan_occ"].n_horizontal_rays
-
-            laser_angular_half_range = laser_angular_range / 2.0
-            angle = np.arange(
-                -np.radians(laser_angular_half_range),
-                np.radians(laser_angular_half_range),
-                np.radians(laser_angular_range) / n_horizontal_rays,
-            )
-            unit_vector_laser = np.array([[np.cos(ang), np.sin(ang), 0.0] for ang in angle])
-            lidar_points = unit_vector_laser * (scan * (laser_linear_range - min_laser_dist) + min_laser_dist)
-
-            lidar_message = pc2.create_cloud_xyz32(lidar_header, lidar_points.tolist())
-            self.lidar_pub.publish(lidar_message)
-
-            #print("[igibson_env_jackalJaco::iGibsonEnv::update_ros_topics_dep] START ODOM")
-            # Odometry
-            odom = [
-                np.array(self.robots[0].get_position()) - np.array(self.task.initial_pos),
-                np.array(self.robots[0].get_rpy()) - np.array(self.task.initial_orn),
-            ]
-
-            self.br.sendTransform(
-                (odom[0][0], odom[0][1], 0),
-                tf.transformations.quaternion_from_euler(0, 0, odom[-1][-1]),
-                rospy.Time.now(),
-                self.ns + "base_footprint",
-                self.ns + "odom",
-            )
-
-            odom_msg = Odometry()
-            odom_msg.header.stamp = rospy.Time.now()
-            odom_msg.header.frame_id = self.ns + "odom"
-            odom_msg.child_frame_id = self.ns + "base_footprint"
-
-            odom_msg.pose.pose.position.x = odom[0][0]
-            odom_msg.pose.pose.position.y = odom[0][1]
-            (
-                odom_msg.pose.pose.orientation.x,
-                odom_msg.pose.pose.orientation.y,
-                odom_msg.pose.pose.orientation.z,
-                odom_msg.pose.pose.orientation.w,
-            ) = tf.transformations.quaternion_from_euler(0, 0, odom[-1][-1])
-
-            odom_msg.twist.twist.linear.x = (self.cmdx + self.cmdy) * 5
-            odom_msg.twist.twist.angular.z = (self.cmdy - self.cmdx) * 5 * 8.695652173913043
-            self.odom_pub.publish(odom_msg)
-
-            #print("[igibson_env_jackalJaco::iGibsonEnv::update_ros_topics_dep] START GROUND TRUTH")
-            # Ground truth pose
-            gt_pose_msg = Odometry()
-            gt_pose_msg.header.stamp = rospy.Time.now()
-            gt_pose_msg.header.frame_id = self.ns + "ground_truth_odom"
-            gt_pose_msg.child_frame_id = self.ns + "base_footprint"
-
-            xyz = self.robots[0].get_position()
-            rpy = self.robots[0].get_rpy()
-
-            gt_pose_msg.pose.pose.position.x = xyz[0]
-            gt_pose_msg.pose.pose.position.y = xyz[1]
-            gt_pose_msg.pose.pose.position.z = xyz[2]
-            (
-                gt_pose_msg.pose.pose.orientation.x,
-                gt_pose_msg.pose.pose.orientation.y,
-                gt_pose_msg.pose.pose.orientation.z,
-                gt_pose_msg.pose.pose.orientation.w,
-            ) = tf.transformations.quaternion_from_euler(rpy[0], rpy[1], rpy[2])
-
-            gt_pose_msg.twist.twist.linear.x = self.cmdx
-            gt_pose_msg.twist.twist.angular.z = -self.cmdy
-
-        #print("[igibson_env_jackalJaco::iGibsonEnv::update_ros_topics_dep] END")
 
     '''
     DESCRIPTION: TODO...
@@ -1151,47 +1210,45 @@ class iGibsonEnv(BaseEnv):
     DESCRIPTION: TODO...
     '''
     def take_action(self, action):
-        print("[igibson_env_jackalJaco::iGibsonEnv::_set_action] START")
+        print("[igibson_env_jackalJaco::iGibsonEnv::take_action] START")
         
         self.step_action = action
         self.current_step += 1
         
-        action = [2.0, 1.0, 1.0, 1.0, 0.5, 3.14, 0.0, 3.14]
+        #action = [0.0, 2.0, 0.5, 0.5, 1.0, 0.0, 0.0, 0.0]
 
-        print("[igibson_env_jackalJaco::iGibsonEnv::_set_action] total_step_num: " + str(self.total_step_num))
-        print("[igibson_env_jackalJaco::iGibsonEnv::_set_action] action: " + str(action))
+        self.update_target_data(action[2], action[3], action[4], action[5], action[6], action[7])
+
+        print("[igibson_env_jackalJaco::iGibsonEnv::take_action] total_step_num: " + str(self.total_step_num))
+        print("[igibson_env_jackalJaco::iGibsonEnv::take_action] action: " + str(action))
         
-        print("[igibson_env_jackalJaco::iGibsonEnv::_set_action] Waiting for mrt_ready...")
+        print("[igibson_env_jackalJaco::iGibsonEnv::take_action] Waiting for mrt_ready...")
         while not self.mrt_ready:
             continue
         self.mrt_ready = False
-        
+        print("[igibson_env_jackalJaco::iGibsonEnv::take_action] Recieved mrt_ready!")
+
+        '''
         # Run Action Server
         success = self.client_set_action_drl(action)
-
         while 1:
             cmd = self.cmd_base + self.cmd_arm
-            #print("[igibson_env_jackalJaco::iGibsonEnv::_set_action] " + self.ns + " cmd: " + str(cmd))
+            #print("[igibson_env_jackalJaco::iGibsonEnv::take_action] " + self.ns + " cmd: " + str(cmd))
 
             self.robots[0].apply_action(cmd)
             collision_links = self.run_simulation()
-
-
         '''
+
         if self.config_mobiman.ablation_mode == 0:
             # Run Action Server
             success = self.client_set_action_drl(action)
-            #while(!success):
-            #    success = self.client_set_action_drl(action, self.config_mobiman.action_time_horizon)
 
-            print("[igibson_env_jackalJaco::iGibsonEnv::_set_action] Waiting mpc_action_complete for " + str(self.config_mobiman.action_time_horizon) + " sec...")
+            print("[igibson_env_jackalJaco::iGibsonEnv::take_action] Waiting mpc_action_complete for " + str(self.config_mobiman.action_time_horizon) + " sec...")
             #rospy.sleep(self.config_mobiman.action_time_horizon)
             time_start = time.time()
             while not self.mpc_action_complete:
-
                 cmd = self.cmd_base + self.cmd_arm
-                #print("[igibson_env_jackalJaco::iGibsonEnv::_set_action] cmd: " + str(cmd))
-
+                #print("[igibson_env_jackalJaco::iGibsonEnv::take_action] cmd: " + str(cmd))
                 self.robots[0].apply_action(cmd)
                 collision_links = self.run_simulation()
                 #self.collision_links = collision_links
@@ -1200,27 +1257,26 @@ class iGibsonEnv(BaseEnv):
             time_end = time.time()
             self.dt_action = time_end - time_start
             self.mpc_action_complete = False
-
-            #print("[igibson_env_jackalJaco::iGibsonEnv::_set_action] mpc_action_result: " + str(self.mpc_action_result))
+            print("[igibson_env_jackalJaco::iGibsonEnv::take_action] Action completed in " + str(self.dt_action) + " sec!")
+            #print("[igibson_env_jackalJaco::iGibsonEnv::take_action] mpc_action_result: " + str(self.mpc_action_result))
 
             distance2goal = self.get_base_distance2goal_2D()
+            print("[igibson_env_jackalJaco::iGibsonEnv::take_action] distance2goal: " + str(distance2goal))
+            print("[igibson_env_jackalJaco::iGibsonEnv::take_action] last_step_distance_threshold: " + str(self.config_mobiman.last_step_distance_threshold))
+            
             if distance2goal < self.config_mobiman.last_step_distance_threshold: # type: ignore
-                
-                print("[igibson_env_jackalJaco::iGibsonEnv::_set_action] distance2goal: " + str(distance2goal))
-                print("[igibson_env_jackalJaco::iGibsonEnv::_set_action] last_step_distance_threshold: " + str(self.config_mobiman.last_step_distance_threshold))
-                
-                
-                last_action = [1, 1, self.goal_data["x"], self.goal_data["y"], self.goal_data["z"], self.goal_data["roll"], self.goal_data["pitch"], self.goal_data["yaw"]]
+                print("[igibson_env_jackalJaco::iGibsonEnv::take_action] WITHIN THE DIST, SETTING TARGET TO GOAL!" )
+
+                last_action = [1.0, 1.0, self.goal_data["x"], self.goal_data["y"], self.goal_data["z"], self.goal_data["roll"], self.goal_data["pitch"], self.goal_data["yaw"]]
                 success = self.client_set_action_drl(last_action, True)
 
                 self.total_last_step_distance += 1
-                print("[igibson_env_jackalJaco::iGibsonEnv::_set_action] Waiting LAST mpc_action_complete for " + str(self.config_mobiman.action_time_horizon) + " sec...")
+                print("[igibson_env_jackalJaco::iGibsonEnv::take_action] Waiting LAST mpc_action_complete for " + str(self.config_mobiman.action_time_horizon) + " sec...")
                 #rospy.sleep(self.config_mobiman.action_time_horizon)
                 time_start = time.time()
                 while not self.mpc_action_complete:
                     cmd = self.cmd_base + self.cmd_arm
-                    #print("[igibson_env_jackalJaco::iGibsonEnv::_set_action] cmd: " + str(cmd))
-
+                    #print("[igibson_env_jackalJaco::iGibsonEnv::take_action] cmd: " + str(cmd))
                     self.robots[0].apply_action(cmd)
                     collision_links = self.run_simulation()
                     #self.collision_links = collision_links
@@ -1229,29 +1285,28 @@ class iGibsonEnv(BaseEnv):
                 time_end = time.time()
                 self.dt_action += time_end - time_start
                 self.mpc_action_complete = False
+                print("[igibson_env_jackalJaco::iGibsonEnv::take_action] LAST Action completed in " + str(self.dt_action) + " sec!")
         
         elif self.config_mobiman.ablation_mode == 1:
             distance2goal = self.get_base_distance2goal_2D()
-
-            print("[igibson_env_jackalJaco::iGibsonEnv::_set_action] distance2goal: " + str(distance2goal))
-            print("[igibson_env_jackalJaco::iGibsonEnv::_set_action] last_step_distance_threshold: " + str(self.config_mobiman.last_step_distance_threshold))
+            print("[igibson_env_jackalJaco::iGibsonEnv::take_action] distance2goal: " + str(distance2goal))
+            print("[igibson_env_jackalJaco::iGibsonEnv::take_action] last_step_distance_threshold: " + str(self.config_mobiman.last_step_distance_threshold))
             
             if distance2goal < self.config_mobiman.last_step_distance_threshold: # type: ignore
                 last_action = [action[0], action[1], self.goal_data["x"], self.goal_data["y"], self.goal_data["z"], self.goal_data["roll"], self.goal_data["pitch"], self.goal_data["yaw"]]
                 
                 self.total_last_step_distance += 1
-                print("[igibson_env_jackalJaco::iGibsonEnv::_set_action] WITHIN THE DIST, SETTING TARGET TO GOAL!" )
+                print("[igibson_env_jackalJaco::iGibsonEnv::take_action] WITHIN THE DIST, SETTING TARGET TO GOAL!" )
                 success = self.client_set_action_drl(last_action, True)
             else:
-                print("[igibson_env_jackalJaco::iGibsonEnv::_set_action] REGULAR TARGET..." )
+                print("[igibson_env_jackalJaco::iGibsonEnv::take_action] REGULAR TARGET..." )
                 success = self.client_set_action_drl(action)
   
-            print("[igibson_env_jackalJaco::iGibsonEnv::_set_action] Waiting mpc_action_complete for " + str(self.config_mobiman.action_time_horizon) + " sec...")
-            #rospy.sleep(self.config_mobiman.action_time_horizon)
+            print("[igibson_env_jackalJaco::iGibsonEnv::take_action] Waiting mpc_action_complete for " + str(self.config_mobiman.action_time_horizon) + " sec...")
             time_start = time.time()
             while not self.mpc_action_complete:
                 cmd = self.cmd_base + self.cmd_arm
-                print("[igibson_env_jackalJaco::iGibsonEnv::_set_action] cmd: " + str(cmd))
+                print("[igibson_env_jackalJaco::iGibsonEnv::take_action] cmd: " + str(cmd))
 
                 if action is not None:
                     self.robots[0].apply_action(cmd)
@@ -1262,13 +1317,13 @@ class iGibsonEnv(BaseEnv):
             time_end = time.time()
             self.dt_action = time_end - time_start
             self.mpc_action_complete = False
+            print("[igibson_env_jackalJaco::iGibsonEnv::take_action] Action completed in " + str(self.dt_action) + " sec!")
 
-        print("[igibson_env_jackalJaco::iGibsonEnv::_set_action] DEBUG INF")
-        while 1:
-            continue
-        '''
-
-        print("[igibson_env_jackalJaco::iGibsonEnv::_set_action] END")
+        #print("[igibson_env_jackalJaco::iGibsonEnv::take_action] DEBUG INF")
+        #while 1:
+        #    continue
+        
+        print("[igibson_env_jackalJaco::iGibsonEnv::take_action] END")
 
     '''
     DESCRIPTION: TODO...
@@ -1280,13 +1335,13 @@ class iGibsonEnv(BaseEnv):
         if self.step_num >= self.config_mobiman.max_episode_steps: # type: ignore
             self.termination_reason = 'max_step'
             self.total_max_step += 1
-            self._episode_done = True
+            self.episode_done = True
             print("[igibson_env_jackalJaco::iGibsonEnv::_is_done] Too late...")
 
-        if self._episode_done and (not self._reached_goal):
+        if self.episode_done and (not self.reached_goal):
             rospy.logdebug("[igibson_env_jackalJaco::iGibsonEnv::_is_done] Boooo! Episode done but not reached the goal...")
             print("[igibson_env_jackalJaco::iGibsonEnv::_is_done] Boooo! Episode done but not reached the goal...")
-        elif self._episode_done and self._reached_goal:
+        elif self.episode_done and self.reached_goal:
             rospy.logdebug("[igibson_env_jackalJaco::iGibsonEnv::_is_done] Gotcha! Episode done and reached the goal!")
             print("[igibson_env_jackalJaco::iGibsonEnv::_is_done] Gotcha! Episode done and reached the goal!")
         else:
@@ -1296,7 +1351,7 @@ class iGibsonEnv(BaseEnv):
         #print("[igibson_env_jackalJaco::iGibsonEnv::_is_done] termination_reason: " + self.termination_reason) # type: ignore
 
         print("[igibson_env_jackalJaco::iGibsonEnv::_is_done] END")
-        return self._episode_done
+        return self.episode_done
 
     '''
     DESCRIPTION: TODO...
@@ -1311,7 +1366,7 @@ class iGibsonEnv(BaseEnv):
         # 4: Target reached
         # 5: Time-horizon reached
 
-        if self._episode_done and (not self._reached_goal):
+        if self.episode_done and (not self.reached_goal):
 
             if self.termination_reason == 'collision':
                 self.step_reward = self.config_mobiman.reward_terminal_collision
@@ -1320,24 +1375,24 @@ class iGibsonEnv(BaseEnv):
             elif self.termination_reason == 'max_step':
                 self.step_reward = self.config_mobiman.reward_terminal_max_step
             else:
-                ### NUA NOTE: CHECK THE STATE IS REACHABLE!
+                ### NUA NOTE: CHECKING IF THE ELSE CASE IS REACHABLE!
                 self.step_reward = self.config_mobiman.reward_terminal_collision
                 print("[igibson_env_jackalJaco::iGibsonEnv::compute_reward] DEBUG INF")
                 #while 1:
                 #    continue
 
-            self.goal_status.data = False
-            self.goal_status_pub.publish(self.goal_status)
+            #self.goal_status.data = False
+            #self.goal_status_pub.publish(self.goal_status)
 
             ## Add training data
             self.training_data.append([self.episode_reward])
 
-        elif self._episode_done and self._reached_goal:
+        elif self.episode_done and self.reached_goal:
 
             #self.step_reward = self.config_mobiman.reward_terminal_success + self.config_mobiman.reward_terminal_mintime * (self.config_mobiman.max_episode_steps - self.step_num) / self.config_mobiman.max_episode_steps
             self.step_reward = self.config_mobiman.reward_terminal_goal
-            self.goal_status.data = True
-            self.goal_status_pub.publish(self.goal_status)
+            #self.goal_status.data = True
+            #self.goal_status_pub.publish(self.goal_status)
 
             ## Add training data
             self.training_data.append([self.episode_reward])
@@ -1386,11 +1441,13 @@ class iGibsonEnv(BaseEnv):
         
         self.episode_reward += self.step_reward # type: ignore
 
-        if self._episode_done and self.episode_num > 0:
+        if self.episode_done and self.episode_num > 0:
             #print("[igibson_env_jackalJaco::iGibsonEnv::compute_reward] episode_num: " + str(self.episode_num))
             #self.total_mean_episode_reward = round((self.total_mean_episode_reward * (self.episode_num - 1) + self.episode_reward) / self.episode_num, self.config_mobiman.mantissa_precision)
             print("[igibson_env_jackalJaco::iGibsonEnv::compute_reward] AND THE NEW total_mean_episode_reward!!!")
             self.total_mean_episode_reward = (self.total_mean_episode_reward * (self.episode_num - 1) + self.episode_reward) / self.episode_num
+
+            self.episode_num = self.episode_num + 1
 
             #print("[igibson_env_jackalJaco::iGibsonEnv::compute_reward] DEBUG INF")
             #while 1:
@@ -1428,7 +1485,7 @@ class iGibsonEnv(BaseEnv):
         # Save Observation-Action-Reward data into a file
         self.save_oar_data()
 
-        if self._episode_done and (len(self.episode_oar_data['obs']) > 1):
+        if self.episode_done and (len(self.episode_oar_data['obs']) > 1):
 
             #print("[igibson_env_jackalJaco::iGibsonEnv::save_oar_data] episode_oar_data obs len: " + str(len(self.episode_oar_data['obs'])))
             #print("[igibson_env_jackalJaco::iGibsonEnv::save_oar_data] episode_oar_data acts len: " + str(len(self.episode_oar_data['acts'])))
@@ -1466,6 +1523,8 @@ class iGibsonEnv(BaseEnv):
     '''
     def load_task_setup(self):
         print("[igibson_env_jackalJaco::iGibsonEnv::load_task_setup] START")
+
+        self.init_ros_env(ros_node_id=self.ros_node_id, init_flag=self.init_ros_node)
 
         self.initial_pos_z_offset = self.config_igibson.get("initial_pos_z_offset", 0.1)
         # s = 0.5 * G * (t ** 2)
@@ -1516,7 +1575,34 @@ class iGibsonEnv(BaseEnv):
                     raise Exception("Invalid task: {}".format(self.config_igibson["task"]))
             except ImportError:
                 raise Exception("bddl is not available.")
+
+        '''
+        # Timers
+        self.create_objects(self.objects)
+        self.transform_timer = rospy.Timer(rospy.Duration(0.01), self.timer_transform)
         
+        self.timer = rospy.Timer(rospy.Duration(0.05), self.callback_update) # type: ignore
+
+        # Wait for topics
+        print("[igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.selfcoldistance_msg_name) + "...")
+        rospy.wait_for_message(self.ns + self.config_mobiman.selfcoldistance_msg_name, collision_info)
+
+        print("[igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.extcoldistance_base_msg_name) + "...")
+        rospy.wait_for_message(self.ns + self.config_mobiman.extcoldistance_base_msg_name, collision_info)
+
+        print("[igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.extcoldistance_arm_msg_name) + "...")
+        rospy.wait_for_message(self.ns + self.config_mobiman.extcoldistance_arm_msg_name, collision_info)
+
+        print("[igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.pointsonrobot_msg_name) + "...")
+        rospy.wait_for_message(self.ns + self.config_mobiman.pointsonrobot_msg_name, MarkerArray)
+
+        print("[igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting callback_update_flag...")
+        while not self.callback_update_flag:
+            continue
+        
+        self.init_flag = True
+        '''
+
         #print("[igibson_env_jackalJaco::iGibsonEnv::load_task_setup] DEBUG INF")
         #while 1:
         #    continue
@@ -1889,14 +1975,14 @@ class iGibsonEnv(BaseEnv):
             
             self.action_space = gym.spaces.Box(obs_space_min, obs_space_max)
 
-        print("[igibson_env_jackalJaco::iGibsonEnv::load_observation_space] action_type: " + str(self.config_mobiman.action_type))
+        print("[igibson_env_jackalJaco::iGibsonEnv::load_action_space] action_type: " + str(self.config_mobiman.action_type))
         if self.config_mobiman.action_type == 0:
             self.config_mobiman.set_action_shape("Discrete, " + str(self.action_space.n)) # type: ignore
         else:
             self.config_mobiman.set_action_shape(self.action_space.shape)
         
-        print("[igibson_env_jackalJaco::iGibsonEnv::load_observation_space] action_space shape: " + str(self.action_space.shape))
-        print("[igibson_env_jackalJaco::iGibsonEnv::load_observation_space] action_space: " + str(self.action_space))
+        print("[igibson_env_jackalJaco::iGibsonEnv::load_action_space] action_space shape: " + str(self.action_space.shape))
+        print("[igibson_env_jackalJaco::iGibsonEnv::load_action_space] action_space: " + str(self.action_space))
 
         #print("[igibson_env_jackalJaco::iGibsonEnv::load_action_space] action_space: " + str(self.action_space))
         #print("[igibson_env_jackalJaco::iGibsonEnv::load_action_space] DEBUG INF")
@@ -1948,9 +2034,9 @@ class iGibsonEnv(BaseEnv):
     def get_state(self):
         print("[igibson_env_jackalJaco::iGibsonEnv::get_state] START")
 
-        #print("[igibson_env_jackalJaco::iGibsonEnv::get_state] DEBUG_INF")   
-        #while 1:
-        #    continue
+        print("[igibson_env_jackalJaco::iGibsonEnv::get_state] DEBUG_INF")   
+        while 1:
+            continue
 
         state = OrderedDict()
 
@@ -2050,29 +2136,34 @@ class iGibsonEnv(BaseEnv):
         info = {}
 
         # Take action
+        print("[igibson_env_jackalJaco::iGibsonEnv::step] BEFORE take_action")
         self.take_action(action)
 
-        print("[igibson_env_jackalJaco::iGibsonEnv::step] DEBUG_INF")
-        while 1:
-            continue
-
         # Update data
+        print("[igibson_env_jackalJaco::iGibsonEnv::step] BEFORE update_data")
         self.update_robot_data()
         self.update_arm_data()
         self.update_goal_data()
-        self.update_target_data()
+        self.update_goal_data_wrt_robot()
+        self.update_goal_data_wrt_ee()
+        #self.update_target_data()
 
         # Update observation (state)
+        print("[igibson_env_jackalJaco::iGibsonEnv::step] BEFORE update_observation")
         self.update_observation()
         state = self.obs
 
         # Check if episode is done
+        print("[igibson_env_jackalJaco::iGibsonEnv::step] BEFORE is_done")
         done = self.is_done(state)
 
         # Compute reward
+        print("[igibson_env_jackalJaco::iGibsonEnv::step] BEFORE compute_reward")
         reward = self.compute_reward(state, done)
 
-        
+        #print("[igibson_env_jackalJaco::iGibsonEnv::step] DEBUG_INF")
+        #while 1:
+        #    continue
 
         '''
         #print("[igibson_env_jackalJaco::iGibsonEnv::step] BEFORE INIT action: " + str(action))
@@ -2106,9 +2197,7 @@ class iGibsonEnv(BaseEnv):
 
         if done and self.automatic_reset:
 
-            print("[igibson_env_jackalJaco::iGibsonEnv::step] DEBUG_INF")
-            while 1:
-                continue
+            print("[igibson_env_jackalJaco::iGibsonEnv::step] EPISODE DONE")
 
             info["last_observation"] = state
             state = self.reset()
@@ -2220,6 +2309,29 @@ class iGibsonEnv(BaseEnv):
         self.collision_step = 0
         self.collision_links = []
 
+        #goal_frame_name = self.ns + self.config_mobiman.goal_frame_name
+
+        #print("[igibson_env_jackalJaco::iGibsonEnv::reset_variables] Waiting for transformation of goal wrt world...")
+        #print("[igibson_env_jackalJaco::iGibsonEnv::reset_variables] world_frame_name: " + str(self.config_mobiman.world_frame_name))
+        #print("[igibson_env_jackalJaco::iGibsonEnv::reset_variables] goal_frame_name: " + str(goal_frame_name))
+        #self.listener.waitForTransform(target_frame=self.config_mobiman.world_frame_name, source_frame=goal_frame_name, time=rospy.Time(0), timeout=rospy.Duration(100))
+        #rospy.wait_for_message(self.config_mobiman)
+        #print("[igibson_env_jackalJaco::iGibsonEnv::reset_variables] Received transform between base and goal!")
+
+        #print("[igibson_env_jackalJaco::iGibsonEnv::reset_variables] DEBUG_INF")
+        #while 1:
+        #    continue
+
+        if self.init_flag:
+            self.update_robot_data()
+            self.update_arm_data()
+            self.update_goal_data()
+            self.update_goal_data_wrt_robot()
+            self.update_goal_data_wrt_ee()
+            #self.update_target_data()
+            self.previous_base_distance2goal = self.get_base_distance2goal_2D()
+            self.prev_target2goal = self.get_base_distance2goal_2D()
+
     def randomize_domain(self):
         """
         Randomize domain.
@@ -2245,6 +2357,7 @@ class iGibsonEnv(BaseEnv):
         print("==================================================")
         print("==================================================")
         print("==================================================")
+        
         self.randomize_domain()
 
         #print("[igibson_env_jackalJaco::iGibsonEnv::reset] DEBUG_INF")
@@ -2253,18 +2366,22 @@ class iGibsonEnv(BaseEnv):
 
         # Move robot away from the scene.
         #self.robots[0].set_position([100.0, 100.0, 100.0])
+        ### NUA TODO: RANDOMIZE!
         self.robots[0].set_position([0.0, 0.0, 0.0])
         
         #print("[igibson_env_jackalJaco::iGibsonEnv::reset] DEBUG_INF")
         #while 1:
         #    continue
 
+        ### NUA TODO: UTILIZE THIS!
         self.task.reset(self)
         
         self.simulator.sync(force_sync=True)
-        #state = self.get_state()
-        state = np.full((1, 56), 0.0).reshape(-1) # type: ignore
+
         self.reset_variables()
+
+        self.update_observation()
+        state = self.obs
 
         #print("[igibson_env_jackalJaco::iGibsonEnv::reset] DEBUG_INF")
         #while 1:
@@ -2273,3 +2390,583 @@ class iGibsonEnv(BaseEnv):
         print("[igibson_env_jackalJaco::iGibsonEnv::reset] END")
 
         return state
+    
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def get_euclidean_distance_2D(self, p1, p2={"x":0.0, "y":0.0}):
+        return math.sqrt((p1["x"] - p2["x"])**2 + (p1["y"] - p2["y"])**2)
+
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def get_euclidean_distance_3D(self, p1, p2={"x":0.0, "y":0.0, "z":0.0}):
+        return math.sqrt((p1["x"] - p2["x"])**2 + (p1["y"] - p2["y"])**2 + (p1["z"] - p2["z"])**2)
+    
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def get_quaternion_distance(self, q1, q2={"qx":0.0, "qy":0.0, "qz":0.0, "qw":1.0}):
+        m_q1 = np.array([q1["qx"], q1["qy"], q1["qz"]])
+        m_q2 = np.array([q2["qx"], q2["qy"], q2["qz"]])
+        qdist_vec = q1["qw"] * m_q2 + q2["qw"] * m_q1 + np.cross(m_q1, m_q2) # type: ignore
+        qdist = np.linalg.norm(qdist_vec)
+        #print("[igibson_env_jackalJaco::iGibsonEnv::get_quaternion_distance] qdist: " + str(qdist))
+        return qdist
+
+    '''
+    DESCRIPTION: TODO...Get the initial distance to the goal
+    '''
+    def get_init_distance2goal_2D(self):
+        distance2goal = self.get_euclidean_distance_2D(self.goal_data, self.init_robot_pose)
+        return distance2goal
+    
+    '''
+    DESCRIPTION: TODO...Get the initial distance to the goal
+    '''
+    def get_init_distance2goal_3D(self):
+        distance2goal = self.get_euclidean_distance_3D(self.goal_data, self.init_robot_pose)
+        return distance2goal
+
+    '''
+    DESCRIPTION: TODO...Gets the distance to the goal
+    '''
+    def get_base_distance2goal_2D(self):
+        distance2goal = self.get_euclidean_distance_2D(self.goal_data, self.robot_data)
+
+        pp1 = Point()
+        pp1.x = self.goal_data["x"]
+        pp1.y = self.goal_data["y"]
+        pp1.z = self.goal_data["z"]
+
+        pp2 = Point()
+        pp2.x = self.robot_data["x"]
+        pp2.y = self.robot_data["y"]
+        pp2.z = self.robot_data["z"]
+ 
+        debug_point_data = [pp1, pp2]
+        for i in range(1, 100):
+            self.publish_debug_visu(debug_point_data)
+
+        return distance2goal
+    
+    '''
+    DESCRIPTION: TODO...Gets the distance to the goal
+    '''
+    def get_base_distance2goal_3D(self):
+        distance2goal = self.get_euclidean_distance_3D(self.goal_data, self.robot_data)
+        return distance2goal
+    
+    '''
+    DESCRIPTION: TODO...Gets the distance to the goal
+    '''
+    def get_arm_distance2goal_3D(self):
+        distance2goal = self.get_euclidean_distance_3D(self.goal_data, self.arm_data)
+        return distance2goal
+    
+    '''
+    DESCRIPTION: TODO...Gets the distance to the target
+    '''
+    def get_arm_quatdistance2goal(self):
+        distance2goal = self.get_quaternion_distance(self.goal_data, self.arm_data)
+        return distance2goal
+    
+    '''
+    DESCRIPTION: TODO...Gets the distance to the target
+    '''
+    def get_base_distance2target_2D(self):
+        distance2goal = self.get_euclidean_distance_2D(self.target_data, self.robot_data)
+        return distance2goal
+
+    '''
+    DESCRIPTION: TODO...Gets the distance to the target
+    '''
+    def get_arm_distance2target_3D(self):
+        distance2goal = self.get_euclidean_distance_3D(self.target_data, self.arm_data)
+        return distance2goal
+    
+    '''
+    DESCRIPTION: TODO...Gets the distance to the target
+    '''
+    def get_base_yawdistance2target(self):
+        #distance2goal = abs(self.target_data["yaw"] - self.robot_data["yaw"])
+
+        quat1 = [self.target_data["qx"], self.target_data["qy"], self.target_data["qz"], self.target_data["qw"]]
+        quat2 = [self.robot_data["qx"], self.robot_data["qy"], self.robot_data["qz"], self.robot_data["qw"]]
+
+        euler1 = tftrans.euler_from_quaternion(quat1) # type: ignore
+        euler2 = tftrans.euler_from_quaternion(quat2) # type: ignore
+        
+        yaw1 = euler1[2]
+        yaw2 = euler2[2]
+
+        yaw_diff = yaw2 - yaw1
+
+        # Normalize yaw difference to be within range of -pi to pi
+        while yaw_diff > math.pi:
+            yaw_diff -= 2*math.pi
+        while yaw_diff < -math.pi:
+            yaw_diff += 2*math.pi
+
+        return abs(yaw_diff / math.pi)
+
+    '''
+    DESCRIPTION: TODO...Gets the distance to the target
+    '''
+    def get_arm_quatdistance2target(self):
+        distance2goal = self.get_quaternion_distance(self.target_data, self.arm_data)
+
+        '''
+        if self.model_mode != 0 and (distance2goal > 1 or distance2goal < 0):
+            print("[igibson_env_jackalJaco::iGibsonEnv::get_base_yawdistance2target] model_mode: " + str(self.model_mode))
+            print("[igibson_env_jackalJaco::iGibsonEnv::get_base_yawdistance2target] distance2goal: " + str(distance2goal))
+
+            print("[igibson_env_jackalJaco::iGibsonEnv::get_base_yawdistance2target] DEBUG INF")
+            while 1:
+                continue
+        '''
+        return distance2goal
+    
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def get_obs_occgrid(self, image_flag=False):
+        if image_flag:
+            obs_occgrid = self.get_occgrid_image()
+        else:
+            occgrid_msg = self.occgrid_msg
+            obs_occgrid = np.asarray(occgrid_msg.data)
+            if self.config_mobiman.occgrid_normalize_flag:
+                max_scale = 1 / self.config_mobiman.occgrid_occ_max # type: ignore
+                obs_occgrid = max_scale * obs_occgrid
+            obs_occgrid = obs_occgrid.reshape(self.config_mobiman.fc_obs_shape)
+        return obs_occgrid
+
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def get_obs_selfcoldistance(self):
+        selfcoldistance_msg = self.selfcoldistance_msg
+
+        obs_selfcoldistance = np.full((1, self.config_mobiman.n_selfcoldistance), self.config_mobiman.self_collision_range_max).reshape(self.config_mobiman.fc_obs_shape) # type: ignore
+        for i, dist in enumerate(selfcoldistance_msg.distance):
+            #csm = selfcoldistance_msg.markers[i*self.config_mobiman.selfcoldistance_n_coeff] # type: ignore
+            #p1 = {"x":csm.points[0].x, "y":csm.points[0].y, "z":csm.points[0].z}
+            #p2 = {"x":csm.points[1].x, "y":csm.points[1].y, "z":csm.points[1].z} 
+            #dist = self.get_euclidean_distance_3D(p1, p2)
+            obs_selfcoldistance[i] = dist
+            #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::get_obs_selfcoldistance] dist " + str(i) + ": " + str(dist))
+        
+        #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::get_obs_selfcoldistance] obs_selfcoldistance shape: " + str(obs_selfcoldistance.shape))
+        #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::get_obs_selfcoldistance] DEBUG INF")
+        #while 1:
+        #    continue
+        
+        return obs_selfcoldistance
+    
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def get_obs_extcoldistance_base(self):
+        extcoldistance_base_msg = self.extcoldistance_base_msg
+
+        #debug_point_data = []
+        #obs_extcoldistance_base = np.full((1, self.config_mobiman.n_extcoldistance_base), self.config_mobiman.ext_collision_range_max).reshape(self.config_mobiman.fc_obs_shape) # type: ignore
+        obs_extcoldistance_base = np.array([[extcoldistance_base_msg.p1[0].x, 
+                                             extcoldistance_base_msg.p1[0].y, 
+                                             extcoldistance_base_msg.p1[0].z]]).reshape(self.config_mobiman.fc_obs_shape)
+        for i, p1 in enumerate(extcoldistance_base_msg.p1):
+            #p1 = {"x":csm.points[0].x, "y":csm.points[0].y, "z":csm.points[0].z}
+            #p2 = {"x":csm.points[1].x, "y":csm.points[1].y, "z":csm.points[1].z}
+            #dist = self.get_euclidean_distance_3D(p1, p2)
+            #obs_extcoldistance_base[i] = dist
+            #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::get_obs_extcoldistance_base] p" + str(i) + ".x: " + str(p1.x))
+            #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::get_obs_extcoldistance_base] p" + str(i) + ".y: " + str(p1.y))
+            #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::get_obs_extcoldistance_base] p" + str(i) + ".z: " + str(p1.z))
+
+            '''
+            p = Point()
+            p.x = p1.x
+            p.y = p1.y
+            p.z = p1.z
+            debug_point_data.append(p)
+            '''
+
+            if i > 0:
+                obs_extcoldistance_base_tmp = np.array([[p1.x, p1.y, p1.z]]).reshape(self.config_mobiman.fc_obs_shape)
+                obs_extcoldistance_base = np.concatenate((obs_extcoldistance_base, obs_extcoldistance_base_tmp), axis=0)
+        
+        #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::get_obs_extcoldistance_base] obs_extcoldistance_base shape: " + str(obs_extcoldistance_base.shape))
+        #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::get_obs_extcoldistance_base] DEBUG INF")
+        #while 1:
+        #    continue
+
+        #self.publish_debug_visu(debug_point_data, extcoldistance_base_msg.frame_name)
+        
+        return obs_extcoldistance_base
+    
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def get_obs_extcoldistance_arm(self):
+        extcoldistance_arm_msg = self.extcoldistance_arm_msg
+
+        #debug_point_data = []
+        #obs_extcoldistance_arm = np.full((1, self.config_mobiman.n_extcoldistance_arm), self.config_mobiman.ext_collision_range_max).reshape(self.config_mobiman.fc_obs_shape) # type: ignore
+        obs_extcoldistance_arm = np.array([[extcoldistance_arm_msg.p1[0].x, 
+                                            extcoldistance_arm_msg.p1[0].y, 
+                                            extcoldistance_arm_msg.p1[0].z]]).reshape(self.config_mobiman.fc_obs_shape)
+        for i, p1 in enumerate(extcoldistance_arm_msg.p1):
+            #p1 = {"x":csm.points[0].x, "y":csm.points[0].y, "z":csm.points[0].z}
+            #p2 = {"x":csm.points[1].x, "y":csm.points[1].y, "z":csm.points[1].z}
+            #dist = self.get_euclidean_distance_3D(p1, p2)
+            #obs_extcoldistance_arm[i] = dist
+            #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::get_obs_extcoldistance_arm] p" + str(i) + ".x: " + str(p1.x))
+            #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::get_obs_extcoldistance_arm] p" + str(i) + ".y: " + str(p1.y))
+            #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::get_obs_extcoldistance_arm] p" + str(i) + ".z: " + str(p1.z))
+
+            '''
+            p = Point()
+            p.x = p1.x
+            p.y = p1.y
+            p.z = p1.z
+            debug_point_data.append(p)
+            '''
+
+            if i > 0:
+                obs_extcoldistance_arm_tmp = np.array([[p1.x, p1.y, p1.z]]).reshape(self.config_mobiman.fc_obs_shape)
+                obs_extcoldistance_arm = np.concatenate((obs_extcoldistance_arm, obs_extcoldistance_arm_tmp), axis=0)
+
+        #self.publish_debug_visu(debug_point_data, extcoldistance_arm_msg.frame_name)
+
+        #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::get_obs_extcoldistance_arm] obs_extcoldistance_arm shape: " + str(obs_extcoldistance_arm.shape))
+        #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::get_obs_extcoldistance_arm] DEBUG INF")
+        #while 1:
+        #    continue
+        
+        return obs_extcoldistance_arm
+    
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def get_obs_armstate(self):
+        #extcoldistance_arm_msg = self.extcoldistance_arm_msg
+
+        obs_armstate = np.full((1, self.config_mobiman.n_armstate), 0).reshape(self.config_mobiman.fc_obs_shape) # type: ignore
+        for i, jp in enumerate(self.arm_data["joint_pos"]):
+            obs_armstate[i] = jp
+
+        #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::get_obs_armstate] obs_armstate shape: " + str(obs_armstate.shape))
+        #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::get_obs_armstate] DEBUG INF")
+        #while 1:
+        #    continue
+        
+        return obs_armstate
+    
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def get_pointsonrobot(self):
+        pointsonrobot_msg = self.pointsonrobot_msg
+
+        obs_pointsonrobot = []
+        for i, pm in enumerate(pointsonrobot_msg.markers):
+            if i != 0:
+                p = Point()
+                p.x = pm.pose.position.x
+                p.y = pm.pose.position.y
+                p.z = pm.pose.position.z
+                obs_pointsonrobot.append(p)
+        
+        #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::get_pointsonrobot] obs_extcoldistancedist shape: " + str(obs_extcoldistancedist.shape))
+        #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::get_pointsonrobot] DEBUG INF")
+        #while 1:
+        #    continue
+        
+        return obs_pointsonrobot
+
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def get_obs_goal(self):
+        quat_goal_wrt_ee = Quaternion(self.goal_data["qw_wrt_ee"], self.goal_data["qx_wrt_ee"], self.goal_data["qy_wrt_ee"], self.goal_data["qz_wrt_ee"])
+        euler_goal_wrt_ee = quat_goal_wrt_ee.to_euler(degrees=False)
+
+        obs_goal = np.array([[self.goal_data["x_wrt_robot"], 
+                              self.goal_data["y_wrt_robot"], 
+                              self.goal_data["z_wrt_robot"],
+                              self.goal_data["x_wrt_ee"], 
+                              self.goal_data["y_wrt_ee"], 
+                              self.goal_data["z_wrt_ee"],
+                              euler_goal_wrt_ee[0],
+                              euler_goal_wrt_ee[1],
+                              euler_goal_wrt_ee[2]]]).reshape(self.config_mobiman.fc_obs_shape) # type: ignore
+        return obs_goal
+
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def linear_function(self, x_min, x_max, y_min, y_max, query_x, slope_sign=1):
+        if x_min <= query_x <= x_max:
+            slope = slope_sign * (y_max - y_min) / (x_max - x_min)
+            y_intercept = y_max - slope * x_min
+            return slope * query_x + y_intercept
+        else:
+            if query_x < x_min:
+                if slope_sign < 0:
+                    return y_max
+                else:
+                    return y_min
+            else:
+                if slope_sign < 0:
+                    return y_min
+                else:
+                    return y_max
+                
+    '''
+    DESCRIPTION: TODO...
+    '''     
+    def sigmoid_function(self, x, gamma):
+        return (1 / (1 + np.exp(-gamma * x))) # type: ignore
+
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def gaussian_function(self, x, sigma):
+        """ Return the scaled Gaussian with standard deviation sigma. """
+        gaussian = np.exp(- (x / sigma)**2)
+        scaled_result = 2 * gaussian - 1
+        return scaled_result
+
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def reward_step_target2goal_diff_func(self, curr_target2goal, prev_target2goal):
+        diff_target2goal = prev_target2goal - curr_target2goal
+        reward_step_target2goal = self.config_mobiman.reward_step_target2goal * self.gaussian_function(diff_target2goal-self.config_mobiman.reward_step_target2goal_mu_regular, self.config_mobiman.reward_step_target2goal_sigma_regular)
+        return reward_step_target2goal
+
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def reward_step_target2goal_curr_func(self, curr_target2goal):
+        reward_step_target2goal = self.config_mobiman.reward_step_target2goal * self.gaussian_function(curr_target2goal-self.config_mobiman.reward_step_target2goal_mu_last_step, self.config_mobiman.reward_step_target2goal_sigma_last_step)
+        return reward_step_target2goal
+    
+    def reward_step_target2goal_func(self, curr_target2goal, prev_target2goal):
+        distance2goal = self.get_base_distance2goal_2D()
+        if distance2goal < self.config_mobiman.last_step_distance_threshold: # type: ignore
+            print("[igibson_env_jackalJaco::iGibsonEnv::reward_step_target2goal_func] WITHIN LAST STEP DISTANCE!")
+            return self.reward_step_target2goal_curr_func(curr_target2goal)
+        else:
+            return self.reward_step_target2goal_diff_func(curr_target2goal, prev_target2goal)
+
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def reward_step_time_horizon_func(self, dt_action):
+        reward_step_mpc_time_horizon = 0
+        if dt_action <= self.config_mobiman.action_time_horizon:
+            reward_step_mpc_time_horizon = self.linear_function(0.0, self.config_mobiman.action_time_horizon, 
+                                                                0.0, self.config_mobiman.reward_step_time_horizon_max, 
+                                                                dt_action, slope_sign=-1) # type: ignore
+        elif dt_action <= 2*self.config_mobiman.action_time_horizon: # type: ignore
+            reward_step_mpc_time_horizon = self.linear_function(self.config_mobiman.action_time_horizon, 2*self.config_mobiman.action_time_horizon,  # type: ignore
+                                                                   self.config_mobiman.reward_step_time_horizon_min, 0.0, 
+                                                                   dt_action, slope_sign=-1) # type: ignore
+        else:
+            if  dt_action > 2*self.config_mobiman.action_time_horizon: # type: ignore
+                reward_step_mpc_time_horizon = self.config_mobiman.reward_step_time_horizon_min
+            else:
+                reward_step_mpc_time_horizon = self.config_mobiman.reward_step_time_horizon_max
+        return reward_step_mpc_time_horizon
+
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def check_collision(self):
+        print("[igibson_env_jackalJaco::iGibsonEnv::check_collision] START")
+        
+        print("[igibson_env_jackalJaco::iGibsonEnv::check_collision] DEBUG_INF")
+        while 1:
+            continue
+
+        selfcoldistance = self.get_obs_selfcoldistance() 
+        extcoldistance_base = self.get_obs_extcoldistance_base()
+        extcoldistance_arm = self.get_obs_extcoldistance_arm()
+        pointsonrobot = self.get_pointsonrobot()
+        
+        for dist in selfcoldistance:
+            #print("[igibson_env_jackalJaco::iGibsonEnv::check_collision] selfcoldistance dist: " + str(dist))
+            if dist < self.config_mobiman.self_collision_range_min:
+                print("[igibson_env_jackalJaco::iGibsonEnv::check_collision] SELF COLLISION")
+                self.episode_done = True
+                self.termination_reason = 1
+                return True
+            
+        for dist in extcoldistance_base:
+            #print("[igibson_env_jackalJaco::iGibsonEnv::check_collision] extcoldistance_base dist: " + str(dist))
+            if dist < self.config_mobiman.ext_collision_range_base_min:
+                print("[igibson_env_jackalJaco::iGibsonEnv::check_collision] EXT BASE COLLISION")
+                self.episode_done = True
+                self.termination_reason = 1
+                return True
+            
+        for dist in extcoldistance_arm:
+            #print("[igibson_env_jackalJaco::iGibsonEnv::check_collision] extcoldistance_arm dist: " + str(dist))
+            if dist < self.config_mobiman.ext_collision_range_arm_min:
+                print("[igibson_env_jackalJaco::iGibsonEnv::check_collision] EXT ARM COLLISION")
+                self.episode_done = True
+                self.termination_reason = 1
+                return True
+
+        for por in pointsonrobot:
+            if por.z < self.config_mobiman.ext_collision_range_base_min:
+                print("[igibson_env_jackalJaco::iGibsonEnv::check_collision] GROUND COLLISION ")
+                self.episode_done = True
+                self.termination_reason = 1
+                return True
+
+        #print("[igibson_env_jackalJaco::iGibsonEnv::check_collision] END")
+
+        return False
+    
+    '''
+    DESCRIPTION: TODO...
+    value.
+    '''
+    def check_rollover(self):
+        #print("[igibson_env_jackalJaco::iGibsonEnv::check_rollover] START")
+        
+        print("[igibson_env_jackalJaco::iGibsonEnv::check_rollover] DEBUG_INF")
+        while 1:
+            continue
+
+        #print("[igibson_env_jackalJaco::iGibsonEnv::check_rollover] pitch: " + str(self.robot_data["pitch"]))
+        #print("[igibson_env_jackalJaco::iGibsonEnv::check_rollover] rollover_pitch_threshold: " + str(self.config_mobiman.rollover_pitch_threshold))
+        # Check pitch
+        if self.robot_data["pitch"] > self.config_mobiman.rollover_pitch_threshold:
+            print("[igibson_env_jackalJaco::iGibsonEnv::check_rollover] PITCH ROLLOVER!!!")
+            self.episode_done = True
+            self.termination_reason = 2
+            return True
+        
+        #print("[igibson_env_jackalJaco::iGibsonEnv::check_rollover] roll: " + str(self.robot_data["roll"]))
+        #print("[igibson_env_jackalJaco::iGibsonEnv::check_rollover] rollover_roll_threshold: " + str(self.config_mobiman.rollover_roll_threshold))
+        # Check roll
+        if self.robot_data["roll"] > self.config_mobiman.rollover_roll_threshold:
+            print("[igibson_env_jackalJaco::iGibsonEnv::check_rollover] ROLL ROLLOVER!!!")
+            self.episode_done = True
+            self.termination_reason = 2
+            return True
+        
+        #print("[igibson_env_jackalJaco::iGibsonEnv::check_rollover] END")
+
+        return False
+    
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def publish_debug_visu(self, debug_point_data, frame_name=""):
+
+        if frame_name == "":
+            frame_name = self.config_mobiman.world_frame_name
+        
+        debug_visu = MarkerArray()
+        for i, dp in enumerate(debug_point_data):
+            marker = Marker()
+            marker.header.frame_id = frame_name
+            marker.ns = str(i)
+            marker.id = i
+            marker.type = marker.SPHERE
+            marker.action = marker.ADD
+            marker.scale.x = 0.1
+            marker.scale.y = 0.1
+            marker.scale.z = 0.1
+            marker.color.r = 1.0
+            marker.color.g = 0.0
+            marker.color.b = 1.0
+            marker.color.a = 1.0
+            marker.pose.orientation.w = 1.0
+            marker.pose.position.x = dp.x
+            marker.pose.position.y = dp.y
+            marker.pose.position.z = dp.z
+            marker.header.stamp = rospy.Time.now()
+
+            debug_visu.markers.append(marker) # type: ignore
+            
+        self.debug_visu_pub.publish(debug_visu) # type: ignore
+
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def save_oar_data(self):
+        if  self.config_mobiman.observation_space_type == "laser_FC" or \
+            self.config_mobiman.observation_space_type == "Tentabot_FC" or \
+            self.config_mobiman.observation_space_type == "mobiman_FC":
+        
+                #print("----------------------------------")
+                #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::save_oar_data] self.obs shape: " + str(self.obs.shape))
+                #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::save_oar_data] self.previous_action shape: " + str(self.previous_action.shape))
+                #print("")
+
+                obs_data = self.obs.reshape((-1)) # type: ignore
+                
+                
+                #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::save_oar_data] obs_data shape: " + str(obs_data.shape))
+                #print("----------------------------------")
+
+                # Save Observation-Action-Reward Data
+                self.episode_oar_data['obs'].append(obs_data) # type: ignore
+                self.oars_data['Index'].append(self.idx)
+                self.oars_data['Observation'].append(obs_data.tolist())
+                self.oars_data['Action'].append(self.step_action)
+                self.oars_data['Reward'].append(self.step_reward)
+                if not self.episode_done:
+                    self.episode_oar_data['acts'].append(self.action_space) # type: ignore
+                    #self.episode_oar_data['infos'].append()
+                    #self.episode_oar_data['terminal'].append(self.episode_done)
+                    self.episode_oar_data['rews'].append(self.step_reward) # type: ignore
+                    ############ CSV #################
+                else:
+                    # self.episode_oar_data['obs'].append(obs_data) # type: ignore
+                    self.oars_data['Index'].append(None)
+                    self.oars_data['Observation'].append([])
+                    self.oars_data['Action'].append([])
+                    self.oars_data['Reward'].append([])
+                    self.idx = 0
+                self.idx += 1
+
+                '''
+                print("----------------------------------")
+                print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::save_oar_data] episode_oar_data obs type: " + str(type(self.episode_oar_data['obs'])))
+                print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::save_oar_data] episode_oar_data obs len: " + str(len(self.episode_oar_data['obs'])))
+                print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::save_oar_data] episode_oar_data acts len: " + str(len(self.episode_oar_data['acts'])))
+                print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::save_oar_data] episode_oar_data: " + str(self.episode_oar_data))
+                #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::save_oar_data] episode_oar_data obs: " + str(self.episode_oar_data.obs))
+                print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::save_oar_data] episode_oar_data obs shape: " + str(self.episode_oar_data.obs.shape))
+                #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::save_oar_data] oar_data: " + str(self.oar_data))
+                print("----------------------------------")
+                '''
+
+    '''
+    DESCRIPTION: TODO...Save a sequence of Trajectories.
+
+        Args:
+            path: Trajectories are saved to this path.
+            trajectories: The trajectories to save.
+    '''
+    def write_oar_data(self) -> None:
+        path = self.config_mobiman.data_folder_path + "oar_data.pkl"
+        trajectories = self.oar_data
+        p = pathlib.Path(path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = f"{path}.tmp"
+        
+        with open(tmp_path, "wb") as f:
+            pickle.dump(trajectories, f)
+
+        # Ensure atomic write
+        os.replace(tmp_path, path)
+
+        print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::write_oar_data] Written Observation-Action-Reward data!")
