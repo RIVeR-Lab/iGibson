@@ -135,7 +135,6 @@ class SimNode:
             #while 1:
             #    continue
 
-            
             if (now - self.last_update_base).to_sec() > 0.1:
                 cmd_base = [0.0, 0.0]
             else:

@@ -269,7 +269,7 @@ def main(selection="user", headless=False, short_exec=False):
     #print("[stable_baselines3_ros_jackalJaco::main] DEBUG_INF")
     #while 1:
     #    continue
-
+    
     ### NUA TODO: DEPRECATE ONE OF THE TWO CONFIG FILES!!!
     igibson_config_path = igibson.ros_path + "/config/" + igibson_config_file + ".yaml" # type: ignore
     igibson_config_data = yaml.load(open(igibson_config_path, "r"), Loader=yaml.FullLoader)
@@ -314,6 +314,7 @@ def main(selection="user", headless=False, short_exec=False):
                 physics_timestep=physics_timestep,
                 init_ros_node=True,
                 ros_node_id=rank,
+                scene_id=rank,
                 use_pb_gui=use_pb_gui,
                 automatic_reset=True,
                 data_folder_path=data_folder_path,

@@ -613,7 +613,11 @@ class BaseRobot(StatefulObject):
     def set_joint_states(self, joint_states):
         """Set this robot's joint states in the format of Dict[String: (q, q_dot)]]"""
         for joint_name, joint in self._joints.items():
-            joint_position, joint_velocity = joint_states[joint_name]
+            if joint_name in joint_states:
+                joint_position, joint_velocity = joint_states[joint_name]
+            else:
+                joint_position = 0.0
+                joint_velocity = 0.0
             joint.reset_state(pos=joint_position, vel=joint_velocity)
 
     def get_joint_names(self):
