@@ -2,6 +2,7 @@
   <!-- Parameters -->
   <arg name="flag_rviz"                default="false" />
   <arg name="flag_drl"                 default="false" />
+  <arg name="flag_igibson"             default="false" />
 
   <arg name="robot_ns"                 default="robotName_0"/>
   <arg name="urdf_path"                default="urdf/jackal_fixedWheel_jaco_fixedFinger.urdf" />
@@ -22,7 +23,7 @@
     </node-->
 
     
-    <group if="$(eval arg('flag_drl') == false)">
+    <group if="$(eval arg('flag_igibson') == true)">
       <node name="mobiman_jackal_jaco" pkg="igibson-ros" type="mobiman_jackal_jaco.py" output="screen" />
     </group>
 
