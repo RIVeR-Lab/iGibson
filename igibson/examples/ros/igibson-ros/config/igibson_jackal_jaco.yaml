@@ -10,8 +10,11 @@ mobiman_config_path: "config/drl/config_mobiman_drl.yaml"
 # gui_interactive
 mode: "headless"
 use_pb_gui: true
-action_timestep: 0.0055   # default: 1/24
-physics_timestep: 0.0055  # default: 1/240
+#action_timestep: 0.0055   # default: 1/24
+#physics_timestep: 0.0055  # default: 1/240
+
+action_timestep: 0.006  # default: 1/24
+physics_timestep: 0.006  # default: 1/240
 
 ### NUA NOTE: UNNECESSARY?
 render_timestep: 0.0 # 1/48

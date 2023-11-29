@@ -255,8 +255,8 @@ class iGibsonEnv(BaseEnv):
             # Clients
 
             # Services
-            rospy.Service(self.ns + 'set_mrt_ready', setBool, self.service_set_mrt_ready)
-            rospy.Service(self.ns + 'set_mpc_action_result', setMPCActionResult, self.service_set_mpc_action_result)
+            #rospy.Service(self.ns + 'set_mrt_ready', setBool, self.service_set_mrt_ready)
+            #rospy.Service(self.ns + 'set_mpc_action_result', setMPCActionResult, self.service_set_mpc_action_result)
 
             # Timers
             self.create_objects(self.objects)
@@ -265,7 +265,7 @@ class iGibsonEnv(BaseEnv):
             self.timer = rospy.Timer(rospy.Duration(0.05), self.timer_update) # type: ignore
 
             if not self.flag_drl:
-                rospy.Timer(rospy.Duration(0.01), self.timer_apply_cmd) # type: ignore
+                rospy.Timer(rospy.Duration(0.05), self.timer_apply_cmd) # type: ignore
 
             # Wait for topics
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.selfcoldistance_msg_name) + "...")
@@ -897,7 +897,9 @@ class iGibsonEnv(BaseEnv):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::update_ros_topics] START")
 
         now = rospy.Time.now()
-        if (now - self.last_update_base).to_sec() > 0.1:
+        dt_base = (now - self.last_update_base).to_sec()
+        if dt_base > 0.4:
+            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::update_ros_topics] dt_base: " + str(dt_base))
             self.cmd_base = [0.0, 0.0]
 
         ## Odom
