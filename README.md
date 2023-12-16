@@ -59,6 +59,12 @@ roslaunch igibson-ros stable_baselines3_ros_turtlebot_multi.launch
 ```
 
 2. In a terminal within the scripts folder in the igibson-ros workspace:
+
+2.1 Source the ROS workspace:
+```
+source ~/catkin_ws/devel/setup.bash
+```
+2.2 Run the script:
 ```
 # cd igibson/examples/ros/igibson-ros/scripts/
 python stable_baselines3_ros_turtlebot.py
