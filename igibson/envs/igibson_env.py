@@ -4,7 +4,8 @@ import os
 import time
 from collections import OrderedDict
 
-import gym
+#import gym
+import gymnasium as gym
 import numpy as np
 import pybullet as p
 from transforms3d.euler import euler2quat
@@ -58,6 +59,7 @@ class iGibsonEnv(BaseEnv):
         mode="headless",
         action_timestep=1 / 10.0,
         physics_timestep=1 / 240.0,
+        max_step=200,
         rendering_settings=None,
         vr_settings=None,
         device_idx=0,
@@ -80,6 +82,7 @@ class iGibsonEnv(BaseEnv):
         """
 
         print("[igibson_env::iGibsonEnv::__init__] START")
+        self.max_step = max_step
         self.ros_node_init = ros_node_init
         if not self.ros_node_init:
             rospy.init_node("igibson_ros_" + str(ros_node_id), anonymous=True)
@@ -137,6 +140,8 @@ class iGibsonEnv(BaseEnv):
             use_pb_gui=use_pb_gui,
         )
         self.automatic_reset = automatic_reset
+
+        #self.spec.max_episode_steps = 100
 
         print("[igibson_env::iGibsonEnv::__init__] END")
         #print("[igibson_env::iGibsonEnv::__init__] DEBUG INF")
@@ -492,11 +497,15 @@ class iGibsonEnv(BaseEnv):
         """
         Load environment.
         """
+        print("[igibson_env::iGibsonEnv::load] START")
+        
         super(iGibsonEnv, self).load()
         self.load_task_setup()
         self.load_observation_space()
         self.load_action_space()
         self.load_miscellaneous_variables()
+
+        print("[igibson_env::iGibsonEnv::load] END")
 
     def get_state(self):
         """
@@ -584,17 +593,17 @@ class iGibsonEnv(BaseEnv):
         """
         self.current_step += 1
 
+        ### ASCYNCHRONOUS TIMESTEP TEST ### START
         if action is not None:
-            #self.robots[0].apply_action(action)
-        
+            
             if self.ros_node_id == 0:
-                print("---------------------")  
-                print("[igibson_env::step] ROBOT " + str(self.ros_node_id))
-                print("[igibson_env::step] current_step: " + str(self.current_step))
+                #print("---------------------")  
+                #print("[igibson_env::step] ROBOT " + str(self.ros_node_id))
+                #print("[igibson_env::step] current_step: " + str(self.current_step))
                 #print("[igibson_env::step] action: " + str(action))
                 action = [-0.2, 0.0]
-                time.sleep(2)
-                print("---------------------")
+                ##time.sleep(2)
+                #print("---------------------")
                 self.robots[0].apply_action(action)
                 collision_links = self.run_simulation()
         
@@ -605,22 +614,28 @@ class iGibsonEnv(BaseEnv):
                 #print("[igibson_env::step] action: " + str(action))
                 print("/////////////////////")
                 action = [0.5, 0.0]
-                for i in range(6):
+                for i in range(1):
                     self.robots[0].apply_action(action)
                     collision_links = self.run_simulation()
+        ### ASCYNCHRONOUS TIMESTEP TEST ### END
         
+        ### DEFAULT ### START
+        #if action is not None:
+        #    self.robots[0].apply_action(action)
         #collision_links = self.run_simulation()
+        ### DEFAULT ### END
+        
         self.collision_links = collision_links
         self.collision_step += int(len(collision_links) > 0)
 
         state = self.get_state()
         info = {}
         reward, info = self.task.get_reward(self, collision_links, action, info)
+        terminated = False
+        truncated = False
         done, info = self.task.get_termination(self, collision_links, action, info)
         self.task.step(self)
         self.populate_info(info)
-
-        
 
         if not self.ros_node_init:
             #print("[igibson_env::iGibsonEnv::step] START update_ros_topics")
@@ -629,10 +644,26 @@ class iGibsonEnv(BaseEnv):
             #print("[igibson_env::iGibsonEnv::step] END update_ros_topics")
 
         if done and self.automatic_reset:
-            info["last_observation"] = state
-            state = self.reset()
+            #info["last_observation"] = state
+            print("[igibson_env::step] TERMINATED!")
+            print("[igibson_env::step] ROBOT " + str(self.ros_node_id))
+            print("[igibson_env::step] current_step: " + str(self.current_step))
+            terminated = True
+            state, info = self.reset()
 
-        return state, reward, done, info
+        if self.current_step > self.max_step:
+            print("[igibson_env::step] TRUNCATED!")
+            print("[igibson_env::step] ROBOT " + str(self.ros_node_id))
+            print("[igibson_env::step] current_step: " + str(self.current_step))
+            truncated = True 
+            state, info = self.reset()       
+
+        #print("[igibson_env::step] reward: " + str(reward))
+        #print("[igibson_env::step] terminated: " + str(terminated))
+        #print("[igibson_env::step] truncated: " + str(truncated))
+        #print("[igibson_env::step] info: " + str(info))
+
+        return state, reward, terminated, truncated, info
 
     def check_collision(self, body_id, ignore_ids=[]):
         """
@@ -752,19 +783,23 @@ class iGibsonEnv(BaseEnv):
             if self.current_episode % self.texture_randomization_freq == 0:
                 self.simulator.scene.randomize_texture()
 
-    def reset(self):
+    def reset(self, *, seed=None, options=None):
         """
         Reset episode.
         """
+        
+        #super().reset(seed=seed)
+
+        info = {}
         self.randomize_domain()
         # Move robot away from the scene.
         self.robots[0].set_position([100.0, 100.0, 100.0])
         self.task.reset(self)
-        self.simulator.sync(force_sync=True)
+        self.simulator.sync(force_sync=False)
         state = self.get_state()
         self.reset_variables()
 
-        return state
+        return state, info
 
 
 if __name__ == "__main__":
