@@ -13,6 +13,7 @@ For CLI options:
 $ python custom_env.py --help
 """
 
+from time import sleep
 import gymnasium as gym
 from gymnasium.spaces import Discrete, Box
 import numpy as np
@@ -24,6 +25,7 @@ os.environ["RAY_DEDUP_LOGS"] = "0"
 import ray
 from ray import air, tune
 from ray.rllib.env.env_context import EnvContext
+from ray.rllib.env.vector_env import VectorEnv
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.utils.test_utils import check_learning_achieved
 from ray.tune.logger import pretty_print
@@ -35,7 +37,7 @@ class SimpleCorridor(gym.Env):
 
     def __init__(self, config: EnvContext):
 
-        print("[ray_async_turtlebot::SimpleCorridor::__init__] START")
+        print("[ray_async_agents::SimpleCorridor::__init__] START")
 
         self.end_pos = config["corridor_length"]
         self.cur_pos = 0
@@ -49,13 +51,13 @@ class SimpleCorridor(gym.Env):
         self.action_space = Discrete(2)
         self.observation_space = Box(0.0, self.end_pos, shape=(1,), dtype=np.float32)
 
-        print("[ray_async_turtlebot::SimpleCorridor::__init__] worker_index: " + str(self.worker_index))
-        print("[ray_async_turtlebot::SimpleCorridor::__init__] num_workers: " + str(self.num_workers))
+        print("[ray_async_agents::SimpleCorridor::__init__] worker_index: " + str(self.worker_index))
+        print("[ray_async_agents::SimpleCorridor::__init__] num_workers: " + str(self.num_workers))
 
         # Set the seed. This is only used for the final (reach goal) reward.
         self.reset(seed=config.worker_index * config.num_workers)
 
-        print("[ray_async_turtlebot::SimpleCorridor::__init__] END")
+        print("[ray_async_agents::SimpleCorridor::__init__] END")
 
     def reset(self, *, seed=None, options=None):
         random.seed(seed)
@@ -67,6 +69,9 @@ class SimpleCorridor(gym.Env):
         self.total_step_num += 1
         self.step_num += 1
 
+        if self.worker_index == 1:
+            sleep(1)
+
         assert action in [0, 1], action
         if action == 0 and self.cur_pos > 0:
             self.cur_pos -= 1
@@ -74,12 +79,24 @@ class SimpleCorridor(gym.Env):
             self.cur_pos += 1
         done = truncated = self.cur_pos >= self.end_pos
         
-        if self.total_step_num >= 1000:
-            print("[ray_async_turtlebot] worker_index: " + str(self.worker_index))
-            print("[ray_async_turtlebot] num_workers: " + str(self.num_workers))
-            print("[ray_async_turtlebot] total_step_num: " + str(self.total_step_num))
-            print("[ray_async_turtlebot] step_num: " + str(self.step_num))
-            print("[ray_async_turtlebot] action: " + str(action))
+        if self.worker_index == 2:
+            #print("[ray_async_agents] worker_index: " + str(self.worker_index))
+            #print("[ray_async_agents] total_step_num: " + str(self.total_step_num))
+            sleep(1)
+            #print("[ray_async_agents] WOKE UP!")
+            #print()
+
+        if self.worker_index == 1:
+            print("[ray_async_agents] worker_index: " + str(self.worker_index))
+            print("[ray_async_agents] total_step_num: " + str(self.total_step_num))
+            print()
+
+        if self.total_step_num >= 128:
+            print("[ray_async_agents] worker_index: " + str(self.worker_index))
+            print("[ray_async_agents] num_workers: " + str(self.num_workers))
+            print("[ray_async_agents] total_step_num: " + str(self.total_step_num))
+            print("[ray_async_agents] step_num: " + str(self.step_num))
+            print("[ray_async_agents] action: " + str(action))
             print()
         
         # Produce a random reward when we reach the goal.
@@ -101,8 +118,9 @@ if __name__ == "__main__":
     config = (
         PPOConfig()
         .environment(SimpleCorridor, env_config={"corridor_length": 5})
-        .rollouts(num_rollout_workers=4)
+        .rollouts(num_rollout_workers=2, remote_worker_envs=False, sample_async=False)
         .resources(num_gpus=1)
+        .training(train_batch_size=128)
     )
 
     stop_iters = 1
