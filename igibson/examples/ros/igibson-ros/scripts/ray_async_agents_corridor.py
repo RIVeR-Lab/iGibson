@@ -108,7 +108,6 @@ class SimpleCorridor(gym.Env):
             {},
         )
 
-
 if __name__ == "__main__":
     ray.init()
 
