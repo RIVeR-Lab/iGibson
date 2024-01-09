@@ -4,7 +4,7 @@
   <arg name="flag_drl"                 default="false" />
   <arg name="flag_igibson"             default="false" />
 
-  <arg name="robot_ns"                 default="robotName_0"/>
+  <arg name="robot_ns"                 default="/"/>
   <arg name="urdf_path"                default="urdf/jackal_fixedWheel_jaco_fixedFinger.urdf" />
   
 
@@ -21,11 +21,6 @@
     <!--node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
       <remap from="/$(arg robot_ns)/joint_states" to="/joint_domates"/>
     </node-->
-
-    
-    <group if="$(eval arg('flag_igibson') == true)">
-      <node name="mobiman_jackal_jaco" pkg="igibson-ros" type="mobiman_jackal_jaco.py" output="screen" />
-    </group>
 
     <!--node name="teleop_twist_keyboard" pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" output="screen">
     </node-->
@@ -57,4 +52,9 @@
           <node name="rviz" pkg="rviz" type="rviz" args="-d $(find igibson-ros)/rviz/jackal_jaco.rviz" />
     </group>
   </group>
+
+  <group if="$(eval arg('flag_igibson') == true)">
+    <node name="mobiman_jackal_jaco" pkg="igibson-ros" type="mobiman_jackalJaco.py" output="screen" />
+  </group>
+
 </launch>
