@@ -236,6 +236,9 @@ class iGibsonEnv(BaseEnv):
             self.br = tf.TransformBroadcaster()
 
             # Subscribers
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] base_control_msg_name: " + str(self.ns + self.config_mobiman.base_control_msg_name))
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] arm_control_msg_name: " + str(self.ns + self.config_mobiman.arm_control_msg_name))
+
             rospy.Subscriber(self.ns + self.config_mobiman.base_control_msg_name, Twist, self.cmd_base_callback)
             rospy.Subscriber(self.ns + self.config_mobiman.arm_control_msg_name, JointTrajectory, self.cmd_arm_callback)
             
@@ -338,6 +341,7 @@ class iGibsonEnv(BaseEnv):
     DESCRIPTION: TODO...
     '''
     def cmd_base_callback(self, data):
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::cmd_base_callback] START")
         self.cmd_base = [data.linear.x, data.angular.z]
         self.last_update_base = rospy.Time.now()
 
@@ -353,6 +357,7 @@ class iGibsonEnv(BaseEnv):
     DESCRIPTION: TODO...
     '''
     def cmd_arm_callback(self, data):
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::cmd_arm_callback] START")
         self.cmd_arm = list(data.points[0].positions)
         
         '''
@@ -542,6 +547,7 @@ class iGibsonEnv(BaseEnv):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_sim] START")
         #self.cmd = self.cmd = [0.3, 0.5] + self.cmd_init_arm
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_sim] self.cmd: " + str(self.cmd))
+        self.cmd = self.cmd_base + self.cmd_arm
         self.robots[0].apply_action(self.cmd)
         self.simulator_step()
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_sim] END")
@@ -1306,9 +1312,9 @@ class iGibsonEnv(BaseEnv):
     '''
     def apply_cmd(self, cmd=None):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::apply_cmd] START")
-        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::apply_cmd] cmd: " + str(self.cmd))
-        #if not cmd:
-        #cmd = self.cmd_base + self.cmd_arm
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::apply_cmd] cmd: " + str(self.cmd))
+        if not cmd:
+            cmd = self.cmd_base + self.cmd_arm
         self.robots[0].apply_action(self.cmd)
         #self.simulator_step()
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::apply_cmd] END")
