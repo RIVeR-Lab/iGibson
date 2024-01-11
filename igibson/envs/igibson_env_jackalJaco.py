@@ -49,7 +49,7 @@ from sensor_msgs.msg import CameraInfo, Image, PointCloud2, JointState
 from trajectory_msgs.msg import JointTrajectory
 from visualization_msgs.msg import MarkerArray, Marker
 
-from ocs2_msgs.msg import collision_info # type: ignore 
+from ocs2_msgs.msg import collision_info, mpc_data # type: ignore 
 from ocs2_msgs.srv import calculateMPCTrajectory, setDiscreteActionDRL, setContinuousActionDRL, setBool, setBoolResponse, setMPCActionResult, setMPCActionResultResponse # type: ignore
 
 from drl.mobiman_drl_config import * # type: ignore 
@@ -239,8 +239,9 @@ class iGibsonEnv(BaseEnv):
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] base_control_msg_name: " + str(self.ns + self.config_mobiman.base_control_msg_name))
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] arm_control_msg_name: " + str(self.ns + self.config_mobiman.arm_control_msg_name))
 
-            rospy.Subscriber(self.ns + self.config_mobiman.base_control_msg_name, Twist, self.cmd_base_callback)
-            rospy.Subscriber(self.ns + self.config_mobiman.arm_control_msg_name, JointTrajectory, self.cmd_arm_callback)
+            #rospy.Subscriber(self.ns + self.config_mobiman.base_control_msg_name, Twist, self.cmd_base_callback)
+            #rospy.Subscriber(self.ns + self.config_mobiman.arm_control_msg_name, JointTrajectory, self.cmd_arm_callback)
+            rospy.Subscriber(self.ns + self.config_mobiman.mpc_data_msg_name, mpc_data, self.mpc_data_callback)
             
             if not self.flag_drl:
                 rospy.Subscriber(self.ns + self.config_mobiman.modelmode_msg_name, UInt8, self.callback_modelmode)
@@ -367,6 +368,18 @@ class iGibsonEnv(BaseEnv):
         else:
             self.cmd_arm = self.cmd_init_arm
         '''
+
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def mpc_data_callback(self, data):
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::mpc_data_callback] START")
+        self.cmd = data.cmd
+        self.cmd_seq = data.seq
+
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::mpc_data_callback] cmd_seq: " + str(self.cmd_seq))
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::mpc_data_callback] cmd: " + str(self.cmd))
+        print("")
 
     '''
     DESCRIPTION: TODO...
@@ -547,8 +560,8 @@ class iGibsonEnv(BaseEnv):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_sim] START")
         #self.cmd = self.cmd = [0.3, 0.5] + self.cmd_init_arm
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_sim] self.cmd: " + str(self.cmd))
-        self.cmd = self.cmd_base + self.cmd_arm
-        self.robots[0].apply_action(self.cmd)
+        cmd = self.cmd
+        self.robots[0].apply_action(cmd)
         self.simulator_step()
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_sim] END")
         #print("")
