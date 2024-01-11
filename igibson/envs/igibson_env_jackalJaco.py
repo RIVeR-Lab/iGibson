@@ -272,6 +272,7 @@ class iGibsonEnv(BaseEnv):
             #rospy.Service(self.ns + 'set_mpc_action_result', setMPCActionResult, self.service_set_mpc_action_result)
 
             # Timers
+            self.conveyor_pose = [3,5,0.1]
             self.create_objects(self.objects)
             self.transform_timer = rospy.Timer(rospy.Duration(0.01), self.timer_transform)
             self.timer = rospy.Timer(rospy.Duration(0.05), self.timer_update) # type: ignore
@@ -311,8 +312,15 @@ class iGibsonEnv(BaseEnv):
         for key,val in objects.items():
             if "conveyor" in key:
                 pointer = p.loadURDF("/home/alpharomeo911/projects/mobiman_ws/src/mobiman/mobiman_simulation/urdf/conveyor_belt.urdf", 
-                   basePosition=[3,5,0.1],
+                   basePosition=self.conveyor_pose,
                    baseOrientation=[0.7071068, 0, 0, 0.7071068],
+                   )
+                self.spawned_objects.append(pointer)
+            else:
+                self.conveyor_pose[-1] += 2
+                pointer = p.loadURDF("/home/alpharomeo911/projects/mobiman_ws/src/mobiman/mobiman_simulation/urdf/red_cube.urdf", 
+                   basePosition=self.conveyor_pose,
+                   baseOrientation=[0, 0, 0, 1],
                    )
                 self.spawned_objects.append(pointer)
             # pointer = YCBObject(name=val, abilities={"soakable": {}, "cleaningTool": {}})
@@ -327,11 +335,11 @@ class iGibsonEnv(BaseEnv):
     def timer_transform(self, timer):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_transform] START")
         model_state_msg = ModelStates()
-        pose = Pose()
         for obj, dict in zip(self.spawned_objects, self.objects.items()):
             # self.br.sendTransform(obj.get_position(), obj.get_orientation(), rospy.Time.now(), f'{self.ns}{dict[0]}', 'world')
             model_state_msg.name.append(dict[0])
             POSE, ORIENTATION = p.getBasePositionAndOrientation(obj)
+            pose = Pose()
             x,y,z = POSE
             pose.position.x = x
             pose.position.y = y
