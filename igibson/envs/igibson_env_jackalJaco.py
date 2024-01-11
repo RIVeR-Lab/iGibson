@@ -319,40 +319,64 @@ class iGibsonEnv(BaseEnv):
                    )
                 self.spawned_objects.append(pointer)
             else:
-                self.conveyor_pose[-1] += 2
+                temp_pose = self.conveyor_pose.copy()
+                temp_pose[-1] += 2
                 pointer = p.loadURDF(os.path.join(self.urdf_path, f"{key}.urdf"),
-                   basePosition=self.conveyor_pose,
+                   basePosition=temp_pose,
                    baseOrientation=[0, 0, 0, 1],
                    )
                 self.spawned_objects.append(pointer)
+        self.randomize_domain()
             # pointer = YCBObject(name=val, abilities={"soakable": {}, "cleaningTool": {}})
             # self.simulator.import_object(pointer)
             
             # self.spawned_objects[-1].set_position([3,3,0.2])
             # self.spawned_objects[-1].set_orientation([0.7071068, 0, 0, 0.7071068])
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def randomize_env(self):
+        for idx, (key,val) in enumerate(self.objects.items()):
+            if "conveyor" in key:
+                p.resetBasePositionAndOrientation(self.spawned_objects[idx], 
+                                                  posObj=self.conveyor_pose, 
+                                                  ornObj=[0.7071068, 0, 0, 0.7071068],
+                                                  )
+            else:
+                shift = random.uniform(-4.0, 4.0)
+                temp_pose = self.conveyor_pose.copy()
+                temp_pose[-1] += 2
+                temp_pose[0] += shift
+                p.resetBasePositionAndOrientation(self.spawned_objects[idx], 
+                                                  posObj=temp_pose, 
+                                                  ornObj=[0, 0, 0, 1],
+                                                  )
 
     '''
     DESCRIPTION: TODO...
     '''
     def timer_transform(self, timer):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_transform] START")
-        model_state_msg = ModelStates()
-        for obj, dict in zip(self.spawned_objects, self.objects.items()):
-            # self.br.sendTransform(obj.get_position(), obj.get_orientation(), rospy.Time.now(), f'{self.ns}{dict[0]}', 'world')
-            model_state_msg.name.append(dict[0])
-            POSE, ORIENTATION = p.getBasePositionAndOrientation(obj)
-            pose = Pose()
-            x,y,z = POSE
-            pose.position.x = x
-            pose.position.y = y
-            pose.position.z = z
-            x,y,z,w = ORIENTATION
-            pose.orientation.x = x
-            pose.orientation.y = y
-            pose.orientation.z = z
-            pose.orientation.w = w
-            model_state_msg.pose.append(pose)
-        self.model_state_pub.publish(model_state_msg)
+        try:
+            model_state_msg = ModelStates()
+            for obj, dict in zip(self.spawned_objects, self.objects.items()):
+                # self.br.sendTransform(obj.get_position(), obj.get_orientation(), rospy.Time.now(), f'{self.ns}{dict[0]}', 'world')
+                model_state_msg.name.append(dict[0])
+                POSE, ORIENTATION = p.getBasePositionAndOrientation(obj)
+                pose = Pose()
+                x,y,z = POSE
+                pose.position.x = x
+                pose.position.y = y
+                pose.position.z = z
+                x,y,z,w = ORIENTATION
+                pose.orientation.x = x
+                pose.orientation.y = y
+                pose.orientation.z = z
+                pose.orientation.w = w
+                model_state_msg.pose.append(pose)
+            self.model_state_pub.publish(model_state_msg)
+        except Exception as e:
+            pass
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_transform] END")
 
     '''
@@ -2537,6 +2561,7 @@ class iGibsonEnv(BaseEnv):
                 self.simulator.scene.randomize_texture()
 
         self.initialize_robot_pose()
+        self.randomize_env()
 
     def reset(self):
         """
