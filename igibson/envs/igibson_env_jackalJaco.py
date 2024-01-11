@@ -309,11 +309,17 @@ class iGibsonEnv(BaseEnv):
     '''
     def create_objects(self, objects):
         for key,val in objects.items():
-            pointer = YCBObject(name=val, abilities={"soakable": {}, "cleaningTool": {}})
-            self.simulator.import_object(pointer)
-            self.spawned_objects.append(pointer)
-            self.spawned_objects[-1].set_position([3,3,0.2])
-            self.spawned_objects[-1].set_orientation([0.7071068, 0, 0, 0.7071068])
+            if "conveyor" in key:
+                pointer = p.loadURDF("/home/alpharomeo911/projects/mobiman_ws/src/mobiman/mobiman_simulation/urdf/conveyor_belt.urdf", 
+                   basePosition=[3,5,0.1],
+                   baseOrientation=[0.7071068, 0, 0, 0.7071068],
+                   )
+                self.spawned_objects.append(pointer)
+            # pointer = YCBObject(name=val, abilities={"soakable": {}, "cleaningTool": {}})
+            # self.simulator.import_object(pointer)
+            
+            # self.spawned_objects[-1].set_position([3,3,0.2])
+            # self.spawned_objects[-1].set_orientation([0.7071068, 0, 0, 0.7071068])
 
     '''
     DESCRIPTION: TODO...
@@ -325,11 +331,12 @@ class iGibsonEnv(BaseEnv):
         for obj, dict in zip(self.spawned_objects, self.objects.items()):
             # self.br.sendTransform(obj.get_position(), obj.get_orientation(), rospy.Time.now(), f'{self.ns}{dict[0]}', 'world')
             model_state_msg.name.append(dict[0])
-            x,y,z = obj.get_position()
+            POSE, ORIENTATION = p.getBasePositionAndOrientation(obj)
+            x,y,z = POSE
             pose.position.x = x
             pose.position.y = y
             pose.position.z = z
-            x,y,z,w = obj.get_orientation()
+            x,y,z,w = ORIENTATION
             pose.orientation.x = x
             pose.orientation.y = y
             pose.orientation.z = z
