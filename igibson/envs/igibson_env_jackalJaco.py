@@ -270,7 +270,9 @@ class iGibsonEnv(BaseEnv):
             # Services
             rospy.Service(self.ns + 'set_mrt_ready', setBool, self.service_set_mrt_ready)
             #rospy.Service(self.ns + 'set_mpc_action_result', setMPCActionResult, self.service_set_mpc_action_result)
-
+            ### ROSPACK
+            self.rospack = rospkg.RosPack()
+            self.urdf_path = os.path.join(self.rospack.get_path('mobiman_simulation'), 'urdf')
             # Timers
             self.conveyor_pose = [3,5,0.1]
             self.create_objects(self.objects)
@@ -311,14 +313,14 @@ class iGibsonEnv(BaseEnv):
     def create_objects(self, objects):
         for key,val in objects.items():
             if "conveyor" in key:
-                pointer = p.loadURDF("/home/alpharomeo911/projects/mobiman_ws/src/mobiman/mobiman_simulation/urdf/conveyor_belt.urdf", 
+                pointer = p.loadURDF(os.path.join(self.urdf_path, f"{key}.urdf"),
                    basePosition=self.conveyor_pose,
                    baseOrientation=[0.7071068, 0, 0, 0.7071068],
                    )
                 self.spawned_objects.append(pointer)
             else:
                 self.conveyor_pose[-1] += 2
-                pointer = p.loadURDF("/home/alpharomeo911/projects/mobiman_ws/src/mobiman/mobiman_simulation/urdf/red_cube.urdf", 
+                pointer = p.loadURDF(os.path.join(self.urdf_path, f"{key}.urdf"),
                    basePosition=self.conveyor_pose,
                    baseOrientation=[0, 0, 0, 1],
                    )
