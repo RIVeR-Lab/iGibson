@@ -169,16 +169,20 @@ class iGibsonEnv(BaseEnv):
         self.episode_oar_data = dict(obs=[], acts=[], infos=None, terminal=[], rews=[])
 
         # Set initial command
-        self.cmd_init_base = [0.0, 0.0]
-        self.cmd_base = self.cmd_init_base
-        self.cmd_init_j1 = 0.0
-        self.cmd_init_j2 = 2.9
-        self.cmd_init_j3 = 1.3
-        self.cmd_init_j4 = 4.2
-        self.cmd_init_j5 = 1.4
-        self.cmd_init_j6 = 0.0
-        self.cmd_init_arm = [self.cmd_init_j1, self.cmd_init_j2, self.cmd_init_j3, self.cmd_init_j4, self.cmd_init_j5, self.cmd_init_j6]
-        self.cmd_arm = self.cmd_init_arm
+        self.cmd_base_init = [0.0, 0.0]
+        self.cmd_base_zeros = self.cmd_base_init
+        self.cmd_base = self.cmd_base_init
+
+        self.cmd_arm_init_j1 = 0.0
+        self.cmd_arm_init_j2 = 2.9
+        self.cmd_arm_init_j3 = 1.3
+        self.cmd_arm_init_j4 = 4.2
+        self.cmd_arm_init_j5 = 1.4
+        self.cmd_arm_init_j6 = 0.0
+        self.cmd_arm_init = [self.cmd_arm_init_j1, self.cmd_arm_init_j2, self.cmd_arm_init_j3, self.cmd_arm_init_j4, self.cmd_arm_init_j5, self.cmd_arm_init_j6]
+        self.cmd_arm_zeros = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        self.cmd_arm = self.cmd_arm_init
+
         self.cmd = self.cmd_base + self.cmd_arm
 
         # Env objects
@@ -392,7 +396,7 @@ class iGibsonEnv(BaseEnv):
             self.cmd_base = [data.linear.x, data.angular.z]
             self.last_update_base = rospy.Time.now()
         else:
-            self.cmd_base = self.cmd_init_base
+            self.cmd_base = self.cmd_base_init
         '''
 
     '''
@@ -407,7 +411,7 @@ class iGibsonEnv(BaseEnv):
             #joint_names = data.joint_names
             self.cmd_arm = list(data.points[0].positions)
         else:
-            self.cmd_arm = self.cmd_init_arm
+            self.cmd_arm = self.cmd_arm_init
         '''
 
     '''
@@ -415,12 +419,26 @@ class iGibsonEnv(BaseEnv):
     '''
     def mpc_data_callback(self, data):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::mpc_data_callback] START")
-        self.cmd = data.cmd
+        
         self.cmd_seq = data.seq
+        self.model_mode = data.model_mode
+        self.input_state = list(data.input_state)
 
-        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::mpc_data_callback] cmd_seq: " + str(self.cmd_seq))
-        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::mpc_data_callback] cmd: " + str(self.cmd))
-        print("")
+        if data.model_mode == 0:
+            self.cmd[:len(data.cmd)] = list(data.cmd)
+        elif data.model_mode == 1:
+            self.cmd = self.cmd_base_zeros + list(data.cmd)
+        elif data.model_mode == 2:
+            self.cmd = list(data.cmd)
+        else:
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::mpc_data_callback] ERROR: Invalid model_mode: " + str(data.model_mode))
+            self.cmd = self.cmd_base_zeros + self.cmd_arm
+
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::mpc_data_callback] cmd_seq: " + str(self.cmd_seq))
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::mpc_data_callback] model_mode: " + str(self.model_mode))
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::mpc_data_callback] input_state: " + str(self.input_state))
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::mpc_data_callback] cmd: " + str(self.cmd))
+        #print("")
 
     '''
     DESCRIPTION: TODO...
@@ -599,7 +617,7 @@ class iGibsonEnv(BaseEnv):
     '''
     def timer_sim(self, event):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_sim] START")
-        #self.cmd = self.cmd = [0.3, 0.5] + self.cmd_init_arm
+        #self.cmd = self.cmd = [0.3, 0.5] + self.cmd_arm_init
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_sim] self.cmd: " + str(self.cmd))
         cmd = self.cmd
         self.robots[0].apply_action(cmd)
@@ -677,7 +695,7 @@ class iGibsonEnv(BaseEnv):
             #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_calculate_mpc_command] time: " + str(time))
             #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_calculate_mpc_command] cmd: " + str(self.cmd))
 
-            #self.cmd = [0.3, 0.5] + self.cmd_init_arm
+            #self.cmd = [0.3, 0.5] + self.cmd_arm_init
             #self.apply_cmd()
             #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_calculate_mpc_command] MANUAL cmd: " + str(self.cmd))
 
@@ -801,7 +819,7 @@ class iGibsonEnv(BaseEnv):
             if result.success:
                 cmd = list(result.cmd)
 
-                #cmd = [0.3, 0.5] + self.cmd_init_arm
+                #cmd = [0.3, 0.5] + self.cmd_arm_init
                 #self.apply_cmd()
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_calculate_mpc_trajectory] MANUAL cmd: " + str(cmd))
             
@@ -2320,7 +2338,7 @@ class iGibsonEnv(BaseEnv):
 
         '''
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] BEFORE INIT action: " + str(action))
-        action = self.cmd_init_base + self.cmd_init_arm
+        action = self.cmd_base_init + self.cmd_arm_init
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] AFTER INIT action: " + str(action))
         #print("")
         action[0] = 0.1
@@ -2591,7 +2609,7 @@ class iGibsonEnv(BaseEnv):
         self.robots[0].set_position_orientation(init_robot_pos, init_robot_quat)
         self.robots[0].set_joint_states(self.init_joint_states)
         
-        self.cmd = self.cmd_init_base + self.cmd_init_arm
+        self.cmd = self.cmd_base_init + self.cmd_arm_init
 
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::reset] DEBUG_INF")
         #while 1:
