@@ -1,6 +1,5 @@
 # igibson simulator
 
-n_robot: 1
 robot_ns: "jackalJaco"
 
 ### NUA TODO: DEPRECATE THIS OR CURRENT YAML!

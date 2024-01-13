@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 '''
-LAST UPDATE: 2023.11.08
+LAST UPDATE: 2024.01.12
 
 AUTHOR: Neset Unver Akmandor (NUA)
 
@@ -26,12 +26,12 @@ from typing import Callable
 import yaml
 import numpy as np
 
-import igibson
-from igibson.utils.utils import parse_config
+import igibson # type: ignore
+from igibson.utils.utils import parse_config # type: ignore
 
 ### NUA NOTE: USING THE CUSTOMIZED VERSION FOR MOBIMAN!
 #from igibson.envs.igibson_env import iGibsonEnv
-from igibson.envs.igibson_env_jackalJaco import iGibsonEnv
+from igibson.envs.igibson_env_jackalJaco import iGibsonEnv # type: ignore
 
 try:
     import gym
@@ -79,7 +79,7 @@ def main():
 
     igibson_config = parse_config(igibson_config_data)
 
-    n_robot = igibson_config["n_robot"]
+    n_robot = rospy.get_param('n_robot', 0)
     mode = igibson_config["mode"]
     action_timestep = igibson_config["action_timestep"]
     physics_timestep = igibson_config["physics_timestep"]
@@ -130,7 +130,7 @@ def main():
         return _init
 
     # Set multi-process
-    env = SubprocVecEnv([make_env(i) for i in range(num_environments)])
+    env = SubprocVecEnv([make_env(i) for i in range(num_environments)]) # type: ignore
     env = VecMonitor(env)
 
     print("[mobiman_jackalJaco::main] DEBUG_INF")
