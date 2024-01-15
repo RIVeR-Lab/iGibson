@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 '''
-LAST UPDATE: 2023.10.26
+LAST UPDATE: 2024.01.15
 
 AUTHOR: Neset Unver Akmandor (NUA)
 
@@ -276,7 +276,6 @@ def main(selection="user", headless=False, short_exec=False):
 
     igibson_config = parse_config(igibson_config_data)
 
-    n_robot = igibson_config["n_robot"]
     mode = igibson_config["mode"]
     action_timestep = igibson_config["action_timestep"]
     physics_timestep = igibson_config["physics_timestep"]
@@ -290,8 +289,7 @@ def main(selection="user", headless=False, short_exec=False):
     print("[stable_baselines3_ros_jackalJaco::main] config_file: " + str(igibson_config_file))
     print("[stable_baselines3_ros_jackalJaco::main] config_path: " + str(igibson_config_path))
     print("[stable_baselines3_ros_jackalJaco::main] config_data: " + str(igibson_config_data))
-    
-    print("[stable_baselines3_ros_jackalJaco::main] n_robot: " + str(n_robot))
+
     print("[stable_baselines3_ros_jackalJaco::main] mode: " + str(mode))
     print("[stable_baselines3_ros_jackalJaco::main] action_timestep: " + str(action_timestep))
     print("[stable_baselines3_ros_jackalJaco::main] physics_timestep: " + str(physics_timestep))
@@ -318,7 +316,8 @@ def main(selection="user", headless=False, short_exec=False):
                 use_pb_gui=use_pb_gui,
                 automatic_reset=True,
                 data_folder_path=data_folder_path,
-                objects=objects                
+                objects=objects,
+                flag_drl=True             
             )
             env.seed(seed + rank) # type: ignore
             return env

@@ -17,6 +17,7 @@ from cv_bridge import CvBridge
 from transforms3d.euler import euler2quat
 from squaternion import Quaternion
 from collections import OrderedDict
+from typing import Optional
 
 #from igibson import ros_path
 from igibson.utils.utils import parse_config
@@ -82,7 +83,7 @@ class iGibsonEnv(BaseEnv):
         ros_node_id=0,
         data_folder_path="",
         objects=None,
-        flag_drl=True
+        flag_drl=False
     ):
         """
         ### NUA TODO: UPDATE!
@@ -141,7 +142,7 @@ class iGibsonEnv(BaseEnv):
         #self.goal_status.data = False
         self.action_counter = 0
         self.observation_counter = 0
-        self.mrt_ready = False
+        self.mrt_ready_flag = False
         self.mpc_action_result = 0
         self.mpc_action_complete = False
 
@@ -211,11 +212,11 @@ class iGibsonEnv(BaseEnv):
         self.automatic_reset = automatic_reset
         self.init_flag = True
 
-        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] num robots: " + str(len(self.robots)))
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] num robots: " + str(len(self.robots)))
         print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] END")
 
         print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting for mrt_ready...")
-        while not self.mrt_ready:
+        while not self.mrt_ready_flag:
             continue
 
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] DEBUG INF")
@@ -227,35 +228,35 @@ class iGibsonEnv(BaseEnv):
     '''
     def init_ros_env(self, ros_node_id=0, init_flag=True):
         print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::init_ros_env] START")
+        
         if init_flag:
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::init_ros_env] ROS entered to the chat!")
             rospy.init_node("igibson_ros_" + str(ros_node_id), anonymous=True)
 
-            self.listener = tf.TransformListener()
-
             # ROS variables
+            self.rospack = rospkg.RosPack()
+            self.urdf_path = os.path.join(self.rospack.get_path('mobiman_simulation'), 'urdf')
+            self.listener = tf.TransformListener()
             self.last_update_base = rospy.Time.now()
             self.last_update_arm = rospy.Time.now()
             self.bridge = CvBridge()
             self.br = tf.TransformBroadcaster()
 
             # Subscribers
-            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] base_control_msg_name: " + str(self.ns + self.config_mobiman.base_control_msg_name))
-            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] arm_control_msg_name: " + str(self.ns + self.config_mobiman.arm_control_msg_name))
-
-            #rospy.Subscriber(self.ns + self.config_mobiman.base_control_msg_name, Twist, self.cmd_base_callback)
-            #rospy.Subscriber(self.ns + self.config_mobiman.arm_control_msg_name, JointTrajectory, self.cmd_arm_callback)
             rospy.Subscriber(self.ns + self.config_mobiman.mpc_data_msg_name, mpc_data, self.mpc_data_callback)
             
-            if not self.flag_drl:
+            if self.flag_drl:
+                rospy.Subscriber(self.ns + self.config_mobiman.occgrid_msg_name, OccupancyGrid, self.callback_occgrid)
+                rospy.Subscriber(self.ns + self.config_mobiman.selfcoldistance_msg_name, collision_info, self.callback_selfcoldistance)
+                rospy.Subscriber(self.ns + self.config_mobiman.extcoldistance_base_msg_name, collision_info, self.callback_extcoldistance_base)
+                rospy.Subscriber(self.ns + self.config_mobiman.extcoldistance_arm_msg_name, collision_info, self.callback_extcoldistance_arm) # type: ignore
+                rospy.Subscriber(self.ns + self.config_mobiman.pointsonrobot_msg_name, MarkerArray, self.callback_pointsonrobot)
+            else:
+                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] modelmode_msg_name: " + str(self.ns + self.config_mobiman.modelmode_msg_name))
                 rospy.Subscriber(self.ns + self.config_mobiman.modelmode_msg_name, UInt8, self.callback_modelmode)
+
+                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] target_msg_name: " + str(self.ns + self.config_mobiman.target_msg_name))
                 rospy.Subscriber(self.ns + self.config_mobiman.target_msg_name, MarkerArray, self.callback_target)
-            
-            rospy.Subscriber(self.ns + self.config_mobiman.occgrid_msg_name, OccupancyGrid, self.callback_occgrid)
-            rospy.Subscriber(self.ns + self.config_mobiman.selfcoldistance_msg_name, collision_info, self.callback_selfcoldistance)
-            rospy.Subscriber(self.ns + self.config_mobiman.extcoldistance_base_msg_name, collision_info, self.callback_extcoldistance_base)
-            rospy.Subscriber(self.ns + self.config_mobiman.extcoldistance_arm_msg_name, collision_info, self.callback_extcoldistance_arm) # type: ignore
-            rospy.Subscriber(self.ns + self.config_mobiman.pointsonrobot_msg_name, MarkerArray, self.callback_pointsonrobot)
 
             # Publishers
             self.image_pub = rospy.Publisher(self.ns + self.config_mobiman.rgb_image_msg_name, Image, queue_size=10)
@@ -272,35 +273,32 @@ class iGibsonEnv(BaseEnv):
             self.model_state_pub = rospy.Publisher(self.ns + "model_states", ModelStates, queue_size=10)
 
             # Services
-            rospy.Service(self.ns + 'set_mrt_ready', setBool, self.service_set_mrt_ready)
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] service_set_mrt_ready: " + str(self.ns + 'set_mrt_ready'))
+            rospy.Service("/" + self.ns + 'set_mrt_ready', setBool, self.service_set_mrt_ready)
             #rospy.Service(self.ns + 'set_mpc_action_result', setMPCActionResult, self.service_set_mpc_action_result)
-            ### ROSPACK
-            self.rospack = rospkg.RosPack()
-            self.urdf_path = os.path.join(self.rospack.get_path('mobiman_simulation'), 'urdf')
+            
             # Timers
+            ## NUA TODO: SET THIS IN CONFIG!
             self.conveyor_pose = [3,5,0.1]
             self.create_objects(self.objects)
-            self.transform_timer = rospy.Timer(rospy.Duration(0.01), self.timer_transform)
-            self.timer = rospy.Timer(rospy.Duration(0.05), self.timer_update) # type: ignore
-
-            ### NUA TODO: SET THIS IN CONFIG!
-            self.dt = 0.05
-            if not self.flag_drl:
-                rospy.Timer(rospy.Duration(0.01), self.timer_sim) # type: ignore
-                #rospy.Timer(rospy.Duration(0.01), self.timer_calculate_mpc_command) # type: ignore
+            
+            rospy.Timer(rospy.Duration(0.01), self.timer_transform)
+            rospy.Timer(rospy.Duration(0.01), self.timer_update)
+            rospy.Timer(rospy.Duration(0.01), self.timer_sim)
 
             # Wait for topics
-            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.selfcoldistance_msg_name) + "...")
-            rospy.wait_for_message(self.ns + self.config_mobiman.selfcoldistance_msg_name, collision_info)
+            if self.flag_drl:
+                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.selfcoldistance_msg_name) + "...")
+                rospy.wait_for_message(self.ns + self.config_mobiman.selfcoldistance_msg_name, collision_info)
 
-            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.extcoldistance_base_msg_name) + "...")
-            rospy.wait_for_message(self.ns + self.config_mobiman.extcoldistance_base_msg_name, collision_info)
+                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.extcoldistance_base_msg_name) + "...")
+                rospy.wait_for_message(self.ns + self.config_mobiman.extcoldistance_base_msg_name, collision_info)
 
-            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.extcoldistance_arm_msg_name) + "...")
-            rospy.wait_for_message(self.ns + self.config_mobiman.extcoldistance_arm_msg_name, collision_info)
+                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.extcoldistance_arm_msg_name) + "...")
+                rospy.wait_for_message(self.ns + self.config_mobiman.extcoldistance_arm_msg_name, collision_info)
 
-            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.pointsonrobot_msg_name) + "...")
-            rospy.wait_for_message(self.ns + self.config_mobiman.pointsonrobot_msg_name, MarkerArray)
+                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.pointsonrobot_msg_name) + "...")
+                rospy.wait_for_message(self.ns + self.config_mobiman.pointsonrobot_msg_name, MarkerArray)
 
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting callback_update_flag...")
             while not self.callback_update_flag:
@@ -392,7 +390,7 @@ class iGibsonEnv(BaseEnv):
         self.last_update_base = rospy.Time.now()
 
         '''
-        if self.mrt_ready:
+        if self.mrt_ready_flag:
             self.cmd_base = [data.linear.x, data.angular.z]
             self.last_update_base = rospy.Time.now()
         else:
@@ -407,7 +405,7 @@ class iGibsonEnv(BaseEnv):
         self.cmd_arm = list(data.points[0].positions)
         
         '''
-        if self.mrt_ready:
+        if self.mrt_ready_flag:
             #joint_names = data.joint_names
             self.cmd_arm = list(data.points[0].positions)
         else:
@@ -631,11 +629,11 @@ class iGibsonEnv(BaseEnv):
     def timer_calculate_mpc_command(self, event):
 
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_calculate_mpc_command] START")
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_calculate_mpc_command] mrt_ready " + str(self.mrt_ready))
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_calculate_mpc_command] mrt_ready_flag " + str(self.mrt_ready_flag))
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_calculate_mpc_command] model_mode " + str(self.model_mode))
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_calculate_mpc_command] target_msg is None: " + str(self.target_msg is None))
 
-        if self.mrt_ready and (self.model_mode >= 0) and self.target_msg:
+        if self.mrt_ready_flag and (self.model_mode >= 0) and self.target_msg:
 
             use_current_policy_flag =  False
             time = self.time
@@ -839,7 +837,12 @@ class iGibsonEnv(BaseEnv):
     DESCRIPTION: TODO...
     '''
     def service_set_mrt_ready(self, req):
-        self.mrt_ready = req.val
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::service_set_mrt_ready] START")
+
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::service_set_mrt_ready] BEFORE mrt_ready: " + str(self.mrt_ready_flag))
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::service_set_mrt_ready] BEFORE val: " + str(req.val))
+        self.mrt_ready_flag = req.val
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::service_set_mrt_ready] AFTER mrt_ready: " + str(self.mrt_ready_flag))
 
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::service_set_mrt_ready] DEBUG_INF")
         #while 1:
@@ -1408,7 +1411,7 @@ class iGibsonEnv(BaseEnv):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] action: " + str(action))
         
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] Waiting for mrt_ready...")
-        while not self.mrt_ready:
+        while not self.mrt_ready_flag:
             continue
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] Recieved mrt_ready!")
 
@@ -1506,7 +1509,7 @@ class iGibsonEnv(BaseEnv):
             self.mpc_action_complete = False
             #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] Action completed in " + str(self.dt_action) + " sec!")
 
-        self.mrt_ready = False
+        self.mrt_ready_flag = False
 
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] DEBUG INF")
         #while 1:
@@ -2581,7 +2584,7 @@ class iGibsonEnv(BaseEnv):
         self.initialize_robot_pose()
         self.randomize_env()
 
-    def reset(self):
+    def reset(self, seed: Optional[int] = None):
         """
         Reset episode.
         """
