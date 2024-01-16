@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 '''
-LAST UPDATE: 2024.01.12
+LAST UPDATE: 2024.01.15
 
 AUTHOR: Neset Unver Akmandor (NUA)
 

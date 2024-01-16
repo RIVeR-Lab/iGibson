@@ -312,7 +312,6 @@ def main(selection="user", headless=False, short_exec=False):
                 physics_timestep=physics_timestep,
                 init_ros_node=True,
                 ros_node_id=rank,
-                scene_id=rank,
                 use_pb_gui=use_pb_gui,
                 automatic_reset=True,
                 data_folder_path=data_folder_path,

@@ -1,8 +1,8 @@
 import logging
 import os
 
-#import gym
-import gymnasium as gym
+import gym
+#import gymnasium as gym
 
 import igibson
 from igibson.object_states import AABB
@@ -328,7 +328,8 @@ class BaseEnv(gym.Env):
         """
         return NotImplementedError()
 
-    def reset(self, *, seed=None, options=None):
+    #def reset(self, *, seed=None, options=None):
+    def reset(self):
         """
         Overwritten by subclasses.
         """

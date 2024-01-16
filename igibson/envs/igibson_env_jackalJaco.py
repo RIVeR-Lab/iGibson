@@ -244,14 +244,13 @@ class iGibsonEnv(BaseEnv):
 
             # Subscribers
             rospy.Subscriber(self.ns + self.config_mobiman.mpc_data_msg_name, mpc_data, self.mpc_data_callback)
+            rospy.Subscriber(self.ns + self.config_mobiman.occgrid_msg_name, OccupancyGrid, self.callback_occgrid)
+            rospy.Subscriber(self.ns + self.config_mobiman.selfcoldistance_msg_name, collision_info, self.callback_selfcoldistance)
+            rospy.Subscriber(self.ns + self.config_mobiman.extcoldistance_base_msg_name, collision_info, self.callback_extcoldistance_base)
+            rospy.Subscriber(self.ns + self.config_mobiman.extcoldistance_arm_msg_name, collision_info, self.callback_extcoldistance_arm) # type: ignore
+            rospy.Subscriber(self.ns + self.config_mobiman.pointsonrobot_msg_name, MarkerArray, self.callback_pointsonrobot)
             
-            if self.flag_drl:
-                rospy.Subscriber(self.ns + self.config_mobiman.occgrid_msg_name, OccupancyGrid, self.callback_occgrid)
-                rospy.Subscriber(self.ns + self.config_mobiman.selfcoldistance_msg_name, collision_info, self.callback_selfcoldistance)
-                rospy.Subscriber(self.ns + self.config_mobiman.extcoldistance_base_msg_name, collision_info, self.callback_extcoldistance_base)
-                rospy.Subscriber(self.ns + self.config_mobiman.extcoldistance_arm_msg_name, collision_info, self.callback_extcoldistance_arm) # type: ignore
-                rospy.Subscriber(self.ns + self.config_mobiman.pointsonrobot_msg_name, MarkerArray, self.callback_pointsonrobot)
-            else:
+            if not self.flag_drl:
                 print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] modelmode_msg_name: " + str(self.ns + self.config_mobiman.modelmode_msg_name))
                 rospy.Subscriber(self.ns + self.config_mobiman.modelmode_msg_name, UInt8, self.callback_modelmode)
 
@@ -287,18 +286,17 @@ class iGibsonEnv(BaseEnv):
             rospy.Timer(rospy.Duration(0.01), self.timer_sim)
 
             # Wait for topics
-            if self.flag_drl:
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.selfcoldistance_msg_name) + "...")
-                rospy.wait_for_message(self.ns + self.config_mobiman.selfcoldistance_msg_name, collision_info)
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.selfcoldistance_msg_name) + "...")
+            rospy.wait_for_message(self.ns + self.config_mobiman.selfcoldistance_msg_name, collision_info)
 
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.extcoldistance_base_msg_name) + "...")
-                rospy.wait_for_message(self.ns + self.config_mobiman.extcoldistance_base_msg_name, collision_info)
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.extcoldistance_base_msg_name) + "...")
+            rospy.wait_for_message(self.ns + self.config_mobiman.extcoldistance_base_msg_name, collision_info)
 
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.extcoldistance_arm_msg_name) + "...")
-                rospy.wait_for_message(self.ns + self.config_mobiman.extcoldistance_arm_msg_name, collision_info)
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.extcoldistance_arm_msg_name) + "...")
+            rospy.wait_for_message(self.ns + self.config_mobiman.extcoldistance_arm_msg_name, collision_info)
 
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.pointsonrobot_msg_name) + "...")
-                rospy.wait_for_message(self.ns + self.config_mobiman.pointsonrobot_msg_name, MarkerArray)
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.pointsonrobot_msg_name) + "...")
+            rospy.wait_for_message(self.ns + self.config_mobiman.pointsonrobot_msg_name, MarkerArray)
 
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting callback_update_flag...")
             while not self.callback_update_flag:
@@ -1398,12 +1396,12 @@ class iGibsonEnv(BaseEnv):
     DESCRIPTION: TODO...
     '''
     def take_action(self, action):
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] START")
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] START")
         
         self.step_action = action
         self.current_step += 1
         
-        #action = [0.0, 2.0, 0.5, 0.5, 1.0, 0.0, 0.0, 0.0]
+        action = [0.0, 1.0, 0.5, 0.5, 1.0, 0.0, 0.0, 0.0]
 
         self.update_target_data(action[2], action[3], action[4], action[5], action[6], action[7])
 
@@ -1413,7 +1411,7 @@ class iGibsonEnv(BaseEnv):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] Waiting for mrt_ready...")
         while not self.mrt_ready_flag:
             continue
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] Recieved mrt_ready!")
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] Recieved mrt_ready!")
 
         '''
         # Run Action Server
@@ -2584,7 +2582,7 @@ class iGibsonEnv(BaseEnv):
         self.initialize_robot_pose()
         self.randomize_env()
 
-    def reset(self, seed: Optional[int] = None):
+    def reset(self):
         """
         Reset episode.
         """
@@ -2614,10 +2612,6 @@ class iGibsonEnv(BaseEnv):
         
         self.cmd = self.cmd_base_init + self.cmd_arm_init
 
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::reset] DEBUG_INF")
-        #while 1:
-        #    continue
-
         ### NUA TODO: UTILIZE THIS!
         #self.task.reset(self)
         
@@ -2631,6 +2625,10 @@ class iGibsonEnv(BaseEnv):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::reset] DEBUG_INF")
         #while 1:
         #    continue
+
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::reset] DEBUG_INF")
+        while 1:
+            continue
 
         print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::reset] END")
 
