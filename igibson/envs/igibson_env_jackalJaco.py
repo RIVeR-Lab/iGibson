@@ -732,7 +732,7 @@ class iGibsonEnv(BaseEnv):
     '''
     def client_set_action_drl(self, action, last_step_flag=False):
         print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] Waiting for service set_action_drl...")
-        set_action_drl_service_name = self.ns + 'set_action_drl'
+        set_action_drl_service_name = self.ns + 'set_action_drl_mrt'
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] set_action_drl_service_name: " + str(set_action_drl_service_name))
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] last_step_flag: " + str(last_step_flag))
         rospy.wait_for_service(set_action_drl_service_name)
