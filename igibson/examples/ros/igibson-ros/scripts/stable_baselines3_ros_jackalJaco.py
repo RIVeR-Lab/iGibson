@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 '''
-LAST UPDATE: 2024.01.15
+LAST UPDATE: 2024.01.18
 
 AUTHOR: Neset Unver Akmandor (NUA)
 
@@ -187,6 +187,7 @@ def main(selection="user", headless=False, short_exec=False):
 
     ## Initialize the parameters
     igibson_config_file = rospy.get_param('igibson_config_file', "")
+    flag_drl = rospy.get_param('flag_drl', True)
     mode = rospy.get_param('mode', "")
     deep_learning_algorithm = rospy.get_param('deep_learning_algorithm', "")
     motion_planning_algorithm = rospy.get_param('motion_planning_algorithm', "")
@@ -208,6 +209,7 @@ def main(selection="user", headless=False, short_exec=False):
     plot_moving_average_window_size_episodes = rospy.get_param('plot_moving_average_window_size_episodes', 0)
 
     print("[stable_baselines3_ros_jackalJaco::main] igibson_config_file: " + str(igibson_config_file))
+    print("[stable_baselines3_ros_jackalJaco::main] flag_drl: " + str(flag_drl))
     print("[stable_baselines3_ros_jackalJaco::main] mode: " + str(mode))
     print("[stable_baselines3_ros_jackalJaco::main] deep_learning_algorithm: " + str(deep_learning_algorithm))
     print("[stable_baselines3_ros_jackalJaco::main] motion_planning_algorithm: " + str(motion_planning_algorithm))
@@ -290,6 +292,7 @@ def main(selection="user", headless=False, short_exec=False):
     print("[stable_baselines3_ros_jackalJaco::main] config_path: " + str(igibson_config_path))
     print("[stable_baselines3_ros_jackalJaco::main] config_data: " + str(igibson_config_data))
 
+    print("[stable_baselines3_ros_jackalJaco::main] flag_drl: " + str(flag_drl))
     print("[stable_baselines3_ros_jackalJaco::main] mode: " + str(mode))
     print("[stable_baselines3_ros_jackalJaco::main] action_timestep: " + str(action_timestep))
     print("[stable_baselines3_ros_jackalJaco::main] physics_timestep: " + str(physics_timestep))
@@ -316,7 +319,7 @@ def main(selection="user", headless=False, short_exec=False):
                 automatic_reset=True,
                 data_folder_path=data_folder_path,
                 objects=objects,
-                flag_drl=True             
+                flag_drl=flag_drl             
             )
             env.seed(seed + rank) # type: ignore
             return env

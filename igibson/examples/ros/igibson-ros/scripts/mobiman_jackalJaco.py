@@ -80,6 +80,7 @@ def main():
     igibson_config = parse_config(igibson_config_data)
 
     n_robot = rospy.get_param('n_robot', 0)
+    flag_drl = rospy.get_param('flag_drl', False)
     mode = igibson_config["mode"]
     action_timestep = igibson_config["action_timestep"]
     physics_timestep = igibson_config["physics_timestep"]
@@ -95,6 +96,7 @@ def main():
     print("[mobiman_jackalJaco::main] config_data: " + str(igibson_config_data))
     
     print("[mobiman_jackalJaco::main] n_robot: " + str(n_robot))
+    print("[mobiman_jackalJaco::main] flag_drl: " + str(flag_drl))
     print("[mobiman_jackalJaco::main] mode: " + str(mode))
     print("[mobiman_jackalJaco::main] action_timestep: " + str(action_timestep))
     print("[mobiman_jackalJaco::main] physics_timestep: " + str(physics_timestep))
@@ -121,7 +123,7 @@ def main():
                 use_pb_gui=use_pb_gui,
                 automatic_reset=True,
                 objects=objects,
-                flag_drl=False,        
+                flag_drl=flag_drl,        
             )
             env.seed(seed + rank) # type: ignore
             return env
