@@ -329,6 +329,8 @@ class iGibsonEnv(BaseEnv):
     DESCRIPTION: TODO...
     '''
     def create_objects(self, objects):
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::create_objects] START")
+
         for key,val in objects.items():
             if "conveyor" in key:
                 pointer = p.loadURDF(os.path.join(self.urdf_path, f"{key}.urdf"),
@@ -350,6 +352,8 @@ class iGibsonEnv(BaseEnv):
             
             # self.spawned_objects[-1].set_position([3,3,0.2])
             # self.spawned_objects[-1].set_orientation([0.7071068, 0, 0, 0.7071068])
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::create_objects] END")
+
     '''
     DESCRIPTION: TODO...
     '''
@@ -788,11 +792,11 @@ class iGibsonEnv(BaseEnv):
     DESCRIPTION: TODO...
     '''
     def client_set_action_drl(self, action, last_step_flag=False):
-        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] Waiting for service set_action_drl...")
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] Waiting for service set_action_drl...")
         
         try:
             if self.config_mobiman.action_type == 0:
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] DISCRETE ACTION")
+                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] DISCRETE ACTION")
                 set_action_drl_service_name = self.ns + 'set_discrete_action_drl_mrt'
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] set_action_drl_service_name: " + str(set_action_drl_service_name))
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] last_step_flag: " + str(last_step_flag))
@@ -802,17 +806,17 @@ class iGibsonEnv(BaseEnv):
                 srv_set_discrete_action_drl = rospy.ServiceProxy(set_action_drl_service_name, setDiscreteActionDRL)  
                 success = srv_set_discrete_action_drl(action, self.config_mobiman.action_time_horizon).success
             else:
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] CONTINUOUS ACTION")
+                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] CONTINUOUS ACTION")
                 set_action_drl_service_name = self.ns + 'set_continuous_action_drl_mrt'
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] set_action_drl_service_name: " + str(set_action_drl_service_name))
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] last_step_flag: " + str(last_step_flag))
                 rospy.wait_for_service(set_action_drl_service_name)
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] Received service set_action_drl!")
 
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] action: "  + str(action))
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] action_time_horizon: "  + str(self.config_mobiman.action_time_horizon))
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] last_step_flag: "  + str(last_step_flag))
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] last_step_distance_threshold: "  + str(self.config_mobiman.last_step_distance_threshold))
+                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] action: "  + str(action))
+                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] action_time_horizon: "  + str(self.config_mobiman.action_time_horizon))
+                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] last_step_flag: "  + str(last_step_flag))
+                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] last_step_distance_threshold: "  + str(self.config_mobiman.last_step_distance_threshold))
                 srv_set_continuous_action_drl = rospy.ServiceProxy(set_action_drl_service_name, setContinuousActionDRL)
                 success = srv_set_continuous_action_drl(action, self.config_mobiman.action_time_horizon, last_step_flag, self.config_mobiman.last_step_distance_threshold).success
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] CONTINUOUS ACTION SENT!")
@@ -932,7 +936,7 @@ class iGibsonEnv(BaseEnv):
         # 3: Goal reached
         # 4: Target reached
         # 5: Time-horizon reached
-        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::service_set_mpc_action_result] START")
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::service_set_mpc_action_result] START")
         self.mpc_action_result = req.action_result
             
         if self.mpc_action_result == 0:
@@ -960,8 +964,10 @@ class iGibsonEnv(BaseEnv):
         
         self.mpc_action_result_model_mode = req.model_mode
         self.mpc_action_complete = True
-        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::service_set_mpc_action_result] mpc_action_result: " + str(self.mpc_action_result))
-        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::service_set_mpc_action_result] END")
+        
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::service_set_mpc_action_result] termination_reason: " + str(self.termination_reason))
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::service_set_mpc_action_result] mpc_action_result: " + str(self.mpc_action_result))
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::service_set_mpc_action_result] END")
         return setMPCActionResultResponse(True)
 
     '''
@@ -1528,8 +1534,8 @@ class iGibsonEnv(BaseEnv):
             time_end = time.time()
             self.dt_action = time_end - time_start
             self.mpc_action_complete = False
-            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] Action completed in " + str(self.dt_action) + " sec!")
-            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] mpc_action_result: " + str(self.mpc_action_result))
+            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] Action completed in " + str(self.dt_action) + " sec!")
+            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] mpc_action_result: " + str(self.mpc_action_result))
 
             distance2goal = self.get_base_distance2goal_2D()
             #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] distance2goal: " + str(distance2goal))
@@ -1558,7 +1564,7 @@ class iGibsonEnv(BaseEnv):
                 time_end = time.time()
                 self.dt_action += time_end - time_start
                 self.mpc_action_complete = False
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] LAST Action completed in " + str(self.dt_action) + " sec!")
+                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] LAST Action completed in " + str(self.dt_action) + " sec!")
         
         elif self.config_mobiman.ablation_mode == 1:
             distance2goal = self.get_base_distance2goal_2D()
@@ -1593,7 +1599,7 @@ class iGibsonEnv(BaseEnv):
             self.mpc_action_complete = False
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] Action completed in " + str(self.dt_action) + " sec!")
 
-        self.mrt_ready_flag = False
+        #self.mrt_ready_flag = False
 
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] DEBUG INF")
         #while 1:
@@ -1605,8 +1611,8 @@ class iGibsonEnv(BaseEnv):
     DESCRIPTION: TODO...
     '''
     def is_done(self, observations):
-        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::_is_done] START")
-        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::_is_done] total_step_num: " + str(self.total_step_num))
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::_is_done] START")
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::_is_done] total_step_num: " + str(self.total_step_num))
 
         if self.step_num >= self.config_mobiman.max_episode_steps: # type: ignore
             self.termination_reason = 'max_step'
@@ -1626,14 +1632,14 @@ class iGibsonEnv(BaseEnv):
 
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::_is_done] termination_reason: " + self.termination_reason) # type: ignore
 
-        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::_is_done] END")
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::_is_done] END")
         return self.episode_done
 
     '''
     DESCRIPTION: TODO...
     '''
     def compute_reward(self, observations, done):
-        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::_compute_reward] START")
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::_compute_reward] START")
 
         # 0: MPC/MRT Failure
         # 1: Collision
@@ -1796,9 +1802,9 @@ class iGibsonEnv(BaseEnv):
         self.step_num += 1
         self.total_step_num += 1
 
-        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] END")
-        print("--------------------------------------------------")
-        print("")
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] END")
+        #print("--------------------------------------------------")
+        #print("")
         return self.step_reward
 
     '''
@@ -2330,6 +2336,11 @@ class iGibsonEnv(BaseEnv):
         :return: a list of collisions from the last physics timestep
     '''
     def run_simulation(self):
+
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::run_simulation] DEBUG_INF")
+        while 1:
+            continue
+
         self.simulator_step()
         collision_links = [
             collision for bid in self.robots[0].get_body_ids() for collision in p.getContactPoints(bodyA=bid)
@@ -2381,6 +2392,8 @@ class iGibsonEnv(BaseEnv):
         :return: info: info dictionary with any useful information
         """
         print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] START")
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] step_num: " + str(self.step_num))
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] total_step_num: " + str(self.total_step_num))
 
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] DEBUG_INF")   
         #while 1:
@@ -2394,29 +2407,28 @@ class iGibsonEnv(BaseEnv):
         info = {}
 
         # Take action
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] BEFORE take_action")
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] BEFORE take_action")
         self.take_action(action)
 
         # Update data
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] BEFORE update_data")
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] BEFORE update_data")
         self.update_robot_data()
         self.update_arm_data()
         self.update_goal_data()
         self.update_goal_data_wrt_robot()
         self.update_goal_data_wrt_ee()
-        #self.update_target_data()
 
         # Update observation (state)
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] BEFORE update_observation")
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] BEFORE update_observation")
         self.update_observation()
         state = self.obs
 
         # Check if episode is done
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] BEFORE is_done")
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] BEFORE is_done")
         done = self.is_done(state)
 
         # Compute reward
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] BEFORE compute_reward")
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] BEFORE compute_reward")
         reward = self.compute_reward(state, done)
 
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] DEBUG_INF")
@@ -2453,19 +2465,26 @@ class iGibsonEnv(BaseEnv):
         self.populate_info(info)
         '''
 
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] END")
+
         if done and self.automatic_reset:
 
-            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] EPISODE DONE")
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] EPISODE DONE")
             #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] episode_num: " + str(self.episode_num))
 
             info["last_observation"] = state
-            state = self.reset()
+            #state = self.reset()
+
+            print("xxxxxxxxxxxxxxxxxxxxxxx END OF EPISODE xxxxxxxxxxxxxxxxxxxxxxx")
+            print("")
+            print("")
+            print("")
 
             #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] DEBUG_INF")
             #while 1:
             #    continue
-
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] END")
+        else:
+            print("~~~~~~~~~~~~~~~~~~~~~~~~~~ END OF STEP ~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
         return state, reward, done, info
 
@@ -2477,6 +2496,11 @@ class iGibsonEnv(BaseEnv):
         :param ignore_ids: pybullet body ids to ignore collisions with
         :return: whether the given body_id has collision
         """
+
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::check_collision] DEBUG_INF")
+        while 1:
+            continue
+
         self.simulator_step()
         collisions = [x for x in p.getContactPoints(bodyA=body_id) if x[2] not in ignore_ids]
 
@@ -2569,6 +2593,9 @@ class iGibsonEnv(BaseEnv):
         """
         Reset bookkeeping variables for the next new episode.
         """
+        self.mpc_data_msg = None
+        self.episode_done = False
+        self.step_num = 1
         self.current_episode += 1
         self.current_step = 0
         self.collision_step = 0
@@ -2664,6 +2691,13 @@ class iGibsonEnv(BaseEnv):
         Object randomization loads new object models with the same poses.
         Texture randomization loads new materials and textures for the same object models.
         """
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_domain] START")
+
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_domain] DEBUG_INF")
+        #while 1:
+        #    continue
+
+
         if self.object_randomization_freq is not None:
             if self.current_episode % self.object_randomization_freq == 0:
                 self.reload_model_object_randomization()
@@ -2673,6 +2707,8 @@ class iGibsonEnv(BaseEnv):
 
         self.initialize_robot_pose()
         self.randomize_env()
+
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_domain] END")
 
     def reset(self):
         """
@@ -2689,8 +2725,10 @@ class iGibsonEnv(BaseEnv):
         
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::reset] flag_run_sim FALSE")
         self.flag_run_sim = False
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::reset] Sleeping 1...")
+        rospy.sleep(5)
 
-        self.randomize_domain()
+        #self.randomize_domain()
 
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::reset] DEBUG_INF")
         #while 1:
@@ -2702,9 +2740,17 @@ class iGibsonEnv(BaseEnv):
         #self.robots[0].set_position([0.0, 0.0, 0.0])
         init_robot_pos = [self.init_robot_pose["x"], self.init_robot_pose["y"], self.init_robot_pose["z"]]
         init_robot_quat = [self.init_robot_pose["qx"], self.init_robot_pose["qy"], self.init_robot_pose["qz"], self.init_robot_pose["qw"]]
+        
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::reset] init_robot_pos: " + str(init_robot_pos))
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::reset] init_robot_quat: " + str(init_robot_quat))
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::reset] init_joint_states: " + str(self.init_joint_states))
+        
         self.robots[0].set_position_orientation(init_robot_pos, init_robot_quat)
         self.robots[0].set_joint_states(self.init_joint_states)
         
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::reset] cmd_base: " + str(self.cmd_base))
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::reset] cmd_arm: " + str(self.cmd_arm))
+
         self.cmd_base = self.cmd_base_init
         self.cmd_arm = self.cmd_arm_init
         #self.cmd = self.cmd_base_init + self.cmd_arm_init
@@ -2712,7 +2758,7 @@ class iGibsonEnv(BaseEnv):
         ### NUA TODO: UTILIZE THIS!
         #self.task.reset(self)
         
-        self.simulator.sync(force_sync=True)
+        #self.simulator.sync(force_sync=True)
 
         self.reset_variables()
 
@@ -2730,6 +2776,9 @@ class iGibsonEnv(BaseEnv):
         #print("####################################")
         #print("####################################")
         #print("####################################")
+
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::reset] Sleeping 2...")
+        rospy.sleep(5)
 
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::reset] END")
 
