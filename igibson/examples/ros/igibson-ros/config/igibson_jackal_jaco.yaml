@@ -23,6 +23,9 @@ robot_name: "JackalJaco"
 # Task
 task: mobiman_pick
 
+### NUA TODO: DEFINE THESE IN A SCRIPT THAT DEFINE IGIBSON TASK!
 ## Objects
 objects: {conveyor_belt: 101_conveyor, 
           red_cube: 102_cube}
+
+conveyor_pos: [0.0, 2.5, 0.1]

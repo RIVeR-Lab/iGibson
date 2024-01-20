@@ -72,8 +72,8 @@ class iGibsonEnv(BaseEnv):
         config_file,
         scene_id=None,
         mode="headless",
-        action_timestep=1 / 5.0,
-        physics_timestep=1 / 60.0,
+        action_timestep=1/5.0,
+        physics_timestep=1/60.0,
         rendering_settings=None,
         vr_settings=None,
         device_idx=0,
@@ -295,7 +295,7 @@ class iGibsonEnv(BaseEnv):
             
             # Timers
             ## NUA TODO: SET THIS IN CONFIG!
-            self.conveyor_pose = [3,5,0.1]
+            self.conveyor_pos = self.config_igibson["conveyor_pos"]
             self.create_objects(self.objects)
             
             rospy.Timer(rospy.Duration(0.01), self.timer_transform)
@@ -333,12 +333,12 @@ class iGibsonEnv(BaseEnv):
         for key,val in objects.items():
             if "conveyor" in key:
                 pointer = p.loadURDF(os.path.join(self.urdf_path, f"{key}.urdf"),
-                   basePosition=self.conveyor_pose,
+                   basePosition=self.conveyor_pos,
                    baseOrientation=[0.7071068, 0, 0, 0.7071068],
                    )
                 self.spawned_objects.append(pointer)
             else:
-                temp_pose = self.conveyor_pose.copy()
+                temp_pose = self.conveyor_pos.copy()
                 temp_pose[-1] += 0.5
                 pointer = p.loadURDF(os.path.join(self.urdf_path, f"{key}.urdf"),
                    basePosition=temp_pose,
@@ -360,11 +360,11 @@ class iGibsonEnv(BaseEnv):
         for idx, (key,val) in enumerate(self.objects.items()):
             if "conveyor" in key:
                 p.resetBasePositionAndOrientation(self.spawned_objects[idx], 
-                                                  posObj=self.conveyor_pose, 
+                                                  posObj=self.conveyor_pos, 
                                                   ornObj=[0.7071068, 0, 0, 0.7071068])
             else:
                 shift = random.uniform(-4.0, 4.0)
-                temp_pose = self.conveyor_pose.copy()
+                temp_pose = self.conveyor_pos.copy()
                 temp_pose[-1] += 0.5
                 temp_pose[0] += shift
                 p.resetBasePositionAndOrientation(self.spawned_objects[idx], 
@@ -1956,17 +1956,20 @@ class iGibsonEnv(BaseEnv):
         robot0_init_yaw = 0.0
         if self.config_mobiman.world_name == "conveyor":
 
-            p1 = {"x":self.config_mobiman.world_range_x_min, "y":self.config_mobiman.world_range_y_min, "z":self.config_mobiman.world_range_z_min}
-            p2 = {"x":self.config_mobiman.world_range_x_max, "y":self.config_mobiman.world_range_y_max, "z":self.config_mobiman.world_range_z_max}
-
-            #self.world_diameter = self.get_euclidean_distance_3D(p1, p2)
+            self.config_mobiman.init_robot_pos_range_x_min
 
             # Set init robot pose
             init_robot_pose_areas_x = []
-            init_robot_pose_areas_x.extend(([-2.0,2.0], [-2.0,2.0], [-2.0,-2.0], [-2.0,2.0]))
+            init_robot_pose_areas_x.extend(([self.config_mobiman.init_robot_pos_range_x_min, self.config_mobiman.init_robot_pos_range_x_max], 
+                                            [self.config_mobiman.init_robot_pos_range_x_min, self.config_mobiman.init_robot_pos_range_x_max], 
+                                            [self.config_mobiman.init_robot_pos_range_x_min, self.config_mobiman.init_robot_pos_range_x_max], 
+                                            [self.config_mobiman.init_robot_pos_range_x_min, self.config_mobiman.init_robot_pos_range_x_max]))
 
             init_robot_pose_areas_y = []
-            init_robot_pose_areas_y.extend(([-1.5,2.0], [-1.5,2.0], [-1.5,2.0], [-1.5,2.0]))
+            init_robot_pose_areas_y.extend(([self.config_mobiman.init_robot_pos_range_y_min, self.config_mobiman.init_robot_pos_range_y_max], 
+                                            [self.config_mobiman.init_robot_pos_range_y_min, self.config_mobiman.init_robot_pos_range_y_max], 
+                                            [self.config_mobiman.init_robot_pos_range_y_min, self.config_mobiman.init_robot_pos_range_y_max], 
+                                            [self.config_mobiman.init_robot_pos_range_y_min, self.config_mobiman.init_robot_pos_range_y_max]))
 
             area_idx = random.randint(0, len(init_robot_pose_areas_x)-1)
             self.robot_init_area_id = area_idx
