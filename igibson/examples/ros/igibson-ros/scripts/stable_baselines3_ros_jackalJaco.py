@@ -281,7 +281,6 @@ def main(selection="user", headless=False, short_exec=False):
     mode = igibson_config["mode"]
     action_timestep = igibson_config["action_timestep"]
     physics_timestep = igibson_config["physics_timestep"]
-    render_timestep = igibson_config["render_timestep"]
     use_pb_gui = igibson_config["use_pb_gui"]
     objects = igibson_config["objects"]
     tensorboard_log_dir = igibson.ros_path + "/log"
@@ -296,7 +295,6 @@ def main(selection="user", headless=False, short_exec=False):
     print("[stable_baselines3_ros_jackalJaco::main] mode: " + str(mode))
     print("[stable_baselines3_ros_jackalJaco::main] action_timestep: " + str(action_timestep))
     print("[stable_baselines3_ros_jackalJaco::main] physics_timestep: " + str(physics_timestep))
-    print("[stable_baselines3_ros_jackalJaco::main] render_timestep: " + str(render_timestep))
     print("[stable_baselines3_ros_jackalJaco::main] use_pb_gui: " + str(use_pb_gui))
     
     print("[stable_baselines3_ros_jackalJaco::main] tensorboard_log_dir: " + str(tensorboard_log_dir))
