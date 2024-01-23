@@ -665,7 +665,7 @@ class iGibsonEnv(BaseEnv):
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] last_step_flag: "  + str(last_step_flag))
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] last_step_distance_threshold: "  + str(self.config_mobiman.last_step_distance_threshold))
                 srv_set_continuous_action_drl = rospy.ServiceProxy(set_action_drl_service_name, setContinuousActionDRL)
-                success = srv_set_continuous_action_drl(action, self.config_mobiman.action_time_horizon, last_step_flag, self.config_mobiman.last_step_distance_threshold).success
+                success = srv_set_continuous_action_drl(self.total_step_num, action, self.config_mobiman.action_time_horizon, last_step_flag, self.config_mobiman.last_step_distance_threshold).success
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] CONTINUOUS ACTION SENT!")
             '''
             if(success):
@@ -1230,6 +1230,8 @@ class iGibsonEnv(BaseEnv):
         
         self.step_action = action
         self.current_step += 1
+
+        action[1] = 0.0
 
         self.update_target_data(action[2], action[3], action[4], action[5], action[6], action[7])
 
