@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 '''
-LAST UPDATE: 2024.01.18
+LAST UPDATE: 2024.01.24
 
 AUTHOR: Neset Unver Akmandor (NUA)
 
@@ -46,6 +46,7 @@ try:
     from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
     from stable_baselines3.common.utils import set_random_seed
     from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
+    from stable_baselines3.common.callbacks import CheckpointCallback
 
 except ModuleNotFoundError:
     print("stable-baselines3 is not installed. You would need to do: pip install stable-baselines3")
@@ -404,10 +405,12 @@ def main(selection="user", headless=False, short_exec=False):
     print("AFTER evaluate_policy 0")
     '''
 
+    checkpoint_callback = CheckpointCallback(save_freq=training_checkpoint_freq, save_path=data_folder_path + '/training_checkpoints/', name_prefix='trained_model') # type: ignore
+
     print("[stable_baselines3_ros_jackalJaco::main] BEFORE learn")
     # Train the model for the given number of steps
     total_timesteps = 100 if short_exec else 24000
-    model.learn(total_timesteps, progress_bar=True) # type: ignore
+    model.learn(total_timesteps, callback=checkpoint_callback, progress_bar=True) # type: ignore
     print("[stable_baselines3_ros_jackalJaco::main] AFTER learn")
 
     '''

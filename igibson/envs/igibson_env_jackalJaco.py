@@ -2364,7 +2364,8 @@ class iGibsonEnv(BaseEnv):
         #extcoldistance_arm_msg = self.extcoldistance_arm_msg
 
         obs_armstate = np.full((1, self.config_mobiman.n_armstate), 0).reshape(self.config_mobiman.fc_obs_shape) # type: ignore
-        for i, jp in enumerate(self.arm_data["joint_pos"]):
+        joint_pos_data = self.arm_data["joint_pos"]
+        for i, jp in enumerate(joint_pos_data):
             obs_armstate[i] = jp
 
         #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::get_obs_armstate] obs_armstate shape: " + str(obs_armstate.shape))
