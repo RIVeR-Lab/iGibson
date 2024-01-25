@@ -250,11 +250,12 @@ class iGibsonEnv(BaseEnv):
 
             # Subscribers
             rospy.Subscriber(self.ns + self.config_mobiman.mpc_data_msg_name, mpc_data, self.mpc_data_callback)
-            rospy.Subscriber(self.ns + self.config_mobiman.occgrid_msg_name, OccupancyGrid, self.callback_occgrid)
+
+            #rospy.Subscriber(self.ns + self.config_mobiman.occgrid_msg_name, OccupancyGrid, self.callback_occgrid)
             rospy.Subscriber(self.ns + self.config_mobiman.selfcoldistance_msg_name, collision_info, self.callback_selfcoldistance)
             rospy.Subscriber(self.ns + self.config_mobiman.extcoldistance_base_msg_name, collision_info, self.callback_extcoldistance_base)
             rospy.Subscriber(self.ns + self.config_mobiman.extcoldistance_arm_msg_name, collision_info, self.callback_extcoldistance_arm) # type: ignore
-            rospy.Subscriber(self.ns + self.config_mobiman.pointsonrobot_msg_name, MarkerArray, self.callback_pointsonrobot)
+            #rospy.Subscriber(self.ns + self.config_mobiman.pointsonrobot_msg_name, MarkerArray, self.callback_pointsonrobot)
             
             #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] BEFORE flag_run_sim: " + str(self.flag_run_sim))
             #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] BEFORE flag_drl: " + str(self.flag_drl))
@@ -267,21 +268,19 @@ class iGibsonEnv(BaseEnv):
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] target_msg_name: " + str(self.ns + self.config_mobiman.target_msg_name))
                 #rospy.Subscriber(self.ns + self.config_mobiman.target_msg_name, MarkerArray, self.callback_target)
 
-                
-            
             #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] AFTER flag_run_sim: " + str(self.flag_run_sim))
             #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] DEBUG_INF")
             #while 1:
             #    continue
             
             # Publishers
-            self.image_pub = rospy.Publisher(self.ns + self.config_mobiman.rgb_image_msg_name, Image, queue_size=10)
-            self.depth_pub = rospy.Publisher(self.ns + self.config_mobiman.depth_image_msg_name, Image, queue_size=10)
-            self.depth_raw_pub = rospy.Publisher(self.ns + self.config_mobiman.depth_image_raw_msg_name, Image, queue_size=10)
-            self.camera_info_pub = rospy.Publisher(self.ns + self.config_mobiman.camera_info_msg_name, CameraInfo, queue_size=10)
-            self.lidar_pub = rospy.Publisher(self.ns + self.config_mobiman.lidar_msg_name, PointCloud2, queue_size=10)
+            #self.image_pub = rospy.Publisher(self.ns + self.config_mobiman.rgb_image_msg_name, Image, queue_size=10)
+            #self.depth_pub = rospy.Publisher(self.ns + self.config_mobiman.depth_image_msg_name, Image, queue_size=10)
+            #self.depth_raw_pub = rospy.Publisher(self.ns + self.config_mobiman.depth_image_raw_msg_name, Image, queue_size=10)
+            #self.camera_info_pub = rospy.Publisher(self.ns + self.config_mobiman.camera_info_msg_name, CameraInfo, queue_size=10)
+            #self.lidar_pub = rospy.Publisher(self.ns + self.config_mobiman.lidar_msg_name, PointCloud2, queue_size=10)
             self.odom_pub = rospy.Publisher(self.ns + self.config_mobiman.odom_msg_name, Odometry, queue_size=10)
-            self.odom_gt_pub = rospy.Publisher(self.ns + self.config_mobiman.odom_msg_name, Odometry, queue_size=10)
+            #self.odom_gt_pub = rospy.Publisher(self.ns + self.config_mobiman.odom_msg_name, Odometry, queue_size=10)
             self.joint_states_pub = rospy.Publisher(self.ns + self.config_mobiman.arm_state_msg_name, JointState, queue_size=10)
             #self.goal_status_pub = rospy.Publisher(self.config_mobiman.goal_status_msg_name, Bool, queue_size=1)
             #self.filtered_laser_pub = rospy.Publisher(self.robot_namespace + '/laser/scan_filtered', LaserScan, queue_size=1)
@@ -294,7 +293,6 @@ class iGibsonEnv(BaseEnv):
             rospy.Service(self.ns + 'set_mpc_action_result', setMPCActionResult, self.service_set_mpc_action_result)
             
             # Timers
-            ## NUA TODO: SET THIS IN CONFIG!
             self.conveyor_pos = self.config_igibson["conveyor_pos"]
             self.create_objects(self.objects)
             
@@ -312,8 +310,8 @@ class iGibsonEnv(BaseEnv):
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.extcoldistance_arm_msg_name) + "...")
             rospy.wait_for_message(self.ns + self.config_mobiman.extcoldistance_arm_msg_name, collision_info)
 
-            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.pointsonrobot_msg_name) + "...")
-            rospy.wait_for_message(self.ns + self.config_mobiman.pointsonrobot_msg_name, MarkerArray)
+            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting msg: " + str(self.ns + self.config_mobiman.pointsonrobot_msg_name) + "...")
+            #rospy.wait_for_message(self.ns + self.config_mobiman.pointsonrobot_msg_name, MarkerArray)
 
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] Waiting callback_update_flag...")
             while not self.callback_update_flag:
@@ -328,30 +326,26 @@ class iGibsonEnv(BaseEnv):
     DESCRIPTION: TODO...
     '''
     def create_objects(self, objects):
-        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::create_objects] START")
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::create_objects] START")
 
         for key,val in objects.items():
             if "conveyor" in key:
                 pointer = p.loadURDF(os.path.join(self.urdf_path, f"{key}.urdf"),
                    basePosition=self.conveyor_pos,
-                   baseOrientation=[0.7071068, 0, 0, 0.7071068],
+                   baseOrientation=[0, 0, 0, 1],
                    )
                 self.spawned_objects.append(pointer)
             else:
-                temp_pose = self.conveyor_pos.copy()
-                temp_pose[-1] += 0.5
+                temp_pos = self.conveyor_pos.copy()
+                temp_pos[2] += 0.5
                 pointer = p.loadURDF(os.path.join(self.urdf_path, f"{key}.urdf"),
-                   basePosition=temp_pose,
+                   basePosition=temp_pos,
                    baseOrientation=[0, 0, 0, 1],
                    )
                 self.spawned_objects.append(pointer)
         self.randomize_domain()
-            # pointer = YCBObject(name=val, abilities={"soakable": {}, "cleaningTool": {}})
-            # self.simulator.import_object(pointer)
-            
-            # self.spawned_objects[-1].set_position([3,3,0.2])
-            # self.spawned_objects[-1].set_orientation([0.7071068, 0, 0, 0.7071068])
-        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::create_objects] END")
+
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::create_objects] END")
 
     '''
     DESCRIPTION: TODO...
@@ -361,14 +355,16 @@ class iGibsonEnv(BaseEnv):
             if "conveyor" in key:
                 p.resetBasePositionAndOrientation(self.spawned_objects[idx], 
                                                   posObj=self.conveyor_pos, 
-                                                  ornObj=[0.7071068, 0, 0, 0.7071068])
+                                                  ornObj=[0, 0, 0, 1])
             else:
-                shift = random.uniform(-4.0, 4.0)
-                temp_pose = self.conveyor_pos.copy()
-                temp_pose[-1] += 0.5
-                temp_pose[0] += shift
+                shift_x = random.uniform(self.config_mobiman.goal_range_min_x, self.config_mobiman.goal_range_max_x)
+                shift_y = random.uniform(self.config_mobiman.goal_range_min_y, self.config_mobiman.goal_range_max_y)
+                temp_pos = self.conveyor_pos.copy()
+                temp_pos[0] += shift_x
+                temp_pos[1] += shift_y
+                temp_pos[2] += 0.5
                 p.resetBasePositionAndOrientation(self.spawned_objects[idx], 
-                                                  posObj=temp_pose, 
+                                                  posObj=temp_pos, 
                                                   ornObj=[0, 0, 0, 1])
 
     '''
@@ -382,7 +378,7 @@ class iGibsonEnv(BaseEnv):
                 # self.br.sendTransform(obj.get_position(), obj.get_orientation(), rospy.Time.now(), f'{self.ns}{dict[0]}', 'world')
                 model_state_msg.name.append(dict[0])
                 POSE, ORIENTATION = p.getBasePositionAndOrientation(obj)
-                pose = Pose()
+                pose = Pose() 
                 x,y,z = POSE
                 pose.position.x = x
                 pose.position.y = y
@@ -395,7 +391,7 @@ class iGibsonEnv(BaseEnv):
                 model_state_msg.pose.append(pose)
             self.model_state_pub.publish(model_state_msg)
         except Exception as e:
-            pass
+            pass     
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_transform] END")
 
     '''
