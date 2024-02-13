@@ -409,8 +409,8 @@ def main(selection="user", headless=False, short_exec=False):
 
     print("[stable_baselines3_ros_jackalJaco::main] BEFORE learn")
     # Train the model for the given number of steps
-    total_timesteps = 100 if short_exec else 24000
-    model.learn(total_timesteps, callback=checkpoint_callback, progress_bar=True) # type: ignore
+    #total_timesteps = 100 if short_exec else 10000
+    model.learn(training_timesteps, callback=checkpoint_callback, progress_bar=True) # type: ignore
     print("[stable_baselines3_ros_jackalJaco::main] AFTER learn")
 
     '''
