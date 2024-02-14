@@ -40,6 +40,20 @@ catkin build
 source devel/setup.bash
 ```
 
+6. Download assets:
+
+6.1 Download the robot models and some small objects as in [iGibson's documentation](https://stanfordvl.github.io/iGibson/installation.html#downloading-the-assets-and-datasets-of-scenes-and-objects).
+```
+python -m igibson.utils.assets_utils --download_assets
+```
+
+6.2 Clone the [sim_utility](git@github.com:RIVeR-Lab/sim_utility.git) repository into a folder.
+```
+git clone git@github.com:RIVeR-Lab/sim_utility.git
+```
+
+6.3 Copy the [jackal_jaco](https://github.com/RIVeR-Lab/sim_utility/tree/main/data/assets/models/jackal_jaco) and [ycb](https://github.com/RIVeR-Lab/sim_utility/tree/main/data/assets/models/ycb/) folders into "iGibson/igibson/data/assets/models" folder.
+
 ## Example 1: Multi-Turtlebot simulation in iGibson and observations are published in ROS:
 
 In a terminal, within igibson-ros workspace:
@@ -64,7 +78,8 @@ roslaunch igibson-ros stable_baselines3_ros_turtlebot_multi.launch
 ```
 source ~/catkin_ws/devel/setup.bash
 ```
-2.2 Run the script:
+
+2.2. Run the script:
 ```
 # cd igibson/examples/ros/igibson-ros/scripts/
 python stable_baselines3_ros_turtlebot.py
