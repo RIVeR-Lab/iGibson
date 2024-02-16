@@ -1,11 +1,13 @@
 #!/usr/bin/python3
 
 '''
-LAST UPDATE: 2024.02.13
+LAST UPDATE: 2024.02.15
 
 AUTHOR: Neset Unver Akmandor (NUA)
+        Sarvesh Prajapati (SP)
 
 E-MAIL: akmandor.n@northeastern.edu
+        prajapati.s@northeastern.edu
 
 DESCRIPTION: TODO...
 
@@ -1464,7 +1466,7 @@ class iGibsonEnv(BaseEnv):
             continue
 
         time_end = time.time()
-        self.dt_action = time_end - time_start
+        self.dt_action = round(time_end - time_start, 2)
         self.mpc_action_complete = False
 
         print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] Action completed in " + str(self.dt_action) + " sec!")
@@ -1546,11 +1548,11 @@ class iGibsonEnv(BaseEnv):
             # 5: Time-horizon reached
             
             if self.termination_reason == 'out_of_boundary':
-                self.step_reward = self.config_mobiman.reward_terminal_collision
+                self.step_reward = self.config_mobiman.reward_terminal_out_of_boundary
             elif self.termination_reason == 'collision':
                 self.step_reward = self.config_mobiman.reward_terminal_collision
             elif self.termination_reason == 'rollover':
-                self.step_reward = self.config_mobiman.reward_terminal_roll
+                self.step_reward = self.config_mobiman.reward_terminal_rollover
             elif self.termination_reason == 'max_step':
                 self.step_reward = self.config_mobiman.reward_terminal_max_step
             else:
@@ -1574,6 +1576,7 @@ class iGibsonEnv(BaseEnv):
 
         elif self.episode_done and self.reached_goal:
 
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] GOOOOOOOOOAAAAAAAALLLLLLLLLLLLLLLLLL!!!")
             self.step_reward = self.config_mobiman.reward_terminal_goal
             #self.goal_status.data = True
             #self.goal_status_pub.publish(self.goal_status)
@@ -1583,7 +1586,7 @@ class iGibsonEnv(BaseEnv):
 
         else:
             # Step Reward 1: target to goal (considers both "previous vs. current" and "current target to goal")
-            reward_step_goal = 0
+            reward_step_goal = 0.0
             current_base_distance2goal_2D = self.get_base_distance2goal_2D()
             current_arm_distance2goal_3D = self.get_arm_distance2goal_3D()
 
@@ -1595,8 +1598,8 @@ class iGibsonEnv(BaseEnv):
 
             elif self.model_mode == 1 or self.model_mode == 2:
                 print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] ARM OR WHOLE-BODY MOTION")
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] current_arm_distance2goal_3D: " + str(current_arm_distance2goal_3D))
                 print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] previous_arm_distance2goal_3D: " + str(self.previous_arm_distance2goal_3D))
+                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] current_arm_distance2goal_3D: " + str(current_arm_distance2goal_3D))               
                 reward_step_goal = self.get_reward_step_dist2goal(curr_dist2goal=current_arm_distance2goal_3D, prev_dist2goal=self.previous_arm_distance2goal_3D)
             
             else:
@@ -1645,17 +1648,18 @@ class iGibsonEnv(BaseEnv):
             #weighted_reward_mpc = self.config_mobiman.alpha_step_mpc_result * reward_step_mpc # type: ignore
 
             # Total Step Reward
-            self.step_reward = weighted_reward_step_dist2goal + weighted_reward_step_mode
+            self.step_reward = round(weighted_reward_step_dist2goal + weighted_reward_step_mode, 2)
 
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] step_reward: " + str(self.step_reward))
         
-        self.episode_reward += self.step_reward # type: ignore
+        self.episode_reward = round(self.episode_reward + self.step_reward, 2)
 
         if self.episode_done and self.episode_num > 0:
             #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] episode_num: " + str(self.episode_num))
             #self.total_mean_episode_reward = round((self.total_mean_episode_reward * (self.episode_num - 1) + self.episode_reward) / self.episode_num, self.config_mobiman.mantissa_precision)
             #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] AND THE NEW total_mean_episode_reward!!!")
             self.total_mean_episode_reward = (self.total_mean_episode_reward * (self.episode_num - 1) + self.episode_reward) / self.episode_num
+            self.total_mean_episode_reward = round(self.total_mean_episode_reward, 2)
 
             self.episode_num = self.episode_num + 1
 
@@ -2203,14 +2207,12 @@ class iGibsonEnv(BaseEnv):
 
         info = {}
 
-        '''
         if action[0] <= 0.3:
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] BASE MOTION")
         elif action[0] > 0.6:
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] ARM MOTION")
         else:
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] WHOLE-BODY MOTION")
-        '''
 
         # Take action
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::step] BEFORE take_action")
@@ -2300,6 +2302,7 @@ class iGibsonEnv(BaseEnv):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::reset_variables] START")
 
         self.episode_done = False
+        self.reached_goal = False
         self.step_num = 1
         self.current_episode += 1
         self.current_step = 0
@@ -2536,6 +2539,7 @@ class iGibsonEnv(BaseEnv):
     '''
     def get_init_distance2goal_2D(self):
         distance2goal = self.get_euclidean_distance_2D(self.goal_data, self.init_robot_pose)
+        distance2goal =  round(distance2goal, 2)
         return distance2goal
     
     '''
@@ -2543,6 +2547,7 @@ class iGibsonEnv(BaseEnv):
     '''
     def get_init_distance2goal_3D(self):
         distance2goal = self.get_euclidean_distance_3D(self.goal_data, self.init_robot_pose)
+        distance2goal =  round(distance2goal, 2)
         return distance2goal
 
     '''
@@ -2550,7 +2555,8 @@ class iGibsonEnv(BaseEnv):
     '''
     def get_base_distance2goal_2D(self):
         distance2goal = self.get_euclidean_distance_2D(self.goal_data, self.robot_data)
-
+        distance2goal =  round(distance2goal, 2)
+        '''
         pp1 = Point()
         pp1.x = self.goal_data["x"]
         pp1.y = self.goal_data["y"]
@@ -2561,9 +2567,10 @@ class iGibsonEnv(BaseEnv):
         pp2.y = self.robot_data["y"]
         pp2.z = self.robot_data["z"]
  
-        #debug_point_data = [pp1, pp2]
-        #for i in range(1, 100):
-        #    self.publish_debug_visu(debug_point_data)
+        debug_point_data = [pp1, pp2]
+        for i in range(1, 100):
+            self.publish_debug_visu(debug_point_data)
+        '''
 
         return distance2goal
     
@@ -2572,6 +2579,7 @@ class iGibsonEnv(BaseEnv):
     '''
     def get_base_distance2goal_3D(self):
         distance2goal = self.get_euclidean_distance_3D(self.goal_data, self.robot_data)
+        distance2goal =  round(distance2goal, 2)
         return distance2goal
     
     '''
@@ -2579,6 +2587,7 @@ class iGibsonEnv(BaseEnv):
     '''
     def get_arm_distance2goal_3D(self):
         distance2goal = self.get_euclidean_distance_3D(self.goal_data, self.arm_data)
+        distance2goal =  round(distance2goal, 2)
         return distance2goal
     
     '''
@@ -2586,6 +2595,7 @@ class iGibsonEnv(BaseEnv):
     '''
     def get_arm_quatdistance2goal(self):
         distance2goal = self.get_quaternion_distance(self.goal_data, self.arm_data)
+        distance2goal =  round(distance2goal, 2)
         return distance2goal
     
     '''
@@ -2593,6 +2603,7 @@ class iGibsonEnv(BaseEnv):
     '''
     def get_base_distance2target_2D(self):
         distance2goal = self.get_euclidean_distance_2D(self.target_data, self.robot_data)
+        distance2goal =  round(distance2goal, 2)
         return distance2goal
 
     '''
@@ -2600,6 +2611,7 @@ class iGibsonEnv(BaseEnv):
     '''
     def get_arm_distance2target_3D(self):
         distance2goal = self.get_euclidean_distance_3D(self.target_data, self.arm_data)
+        distance2goal =  round(distance2goal, 2)
         return distance2goal
     
     '''
@@ -2632,6 +2644,7 @@ class iGibsonEnv(BaseEnv):
     '''
     def get_arm_quatdistance2target(self):
         distance2goal = self.get_quaternion_distance(self.target_data, self.arm_data)
+        distance2goal =  round(distance2goal, 2)
 
         '''
         if self.model_mode != 0 and (distance2goal > 1 or distance2goal < 0):
@@ -2682,8 +2695,8 @@ class iGibsonEnv(BaseEnv):
                 obs_selfcoldistance[i] = self.config_mobiman.self_collision_range_max
             
             if check_flag:
-                if  (dist < self.config_mobiman.self_collision_range_min or 
-                     dist > self.config_mobiman.self_collision_range_max):
+                if  (obs_selfcoldistance[i] < self.config_mobiman.self_collision_range_min or 
+                     obs_selfcoldistance[i] > self.config_mobiman.self_collision_range_max):
                     check_result = False
 
             #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::get_obs_selfcoldistance] dist " + str(i) + ": " + str(dist))
@@ -3112,6 +3125,10 @@ class iGibsonEnv(BaseEnv):
     def get_reward_step_dist2goal(self, curr_dist2goal, prev_dist2goal):
         diff_dist2goal = prev_dist2goal - curr_dist2goal
         reward_step_dist2goal = self.config_mobiman.reward_step_dist2goal_scale * diff_dist2goal
+        if curr_dist2goal < self.config_mobiman.reward_step_dist2goal_dist_threshold:
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_dist2goal] Bro it's so close, but be careful!")
+            reward_step_dist2goal += self.config_mobiman.reward_step_dist2goal_scale
+        reward_step_dist2goal = round(reward_step_dist2goal, 2)
         return reward_step_dist2goal
 
     '''
