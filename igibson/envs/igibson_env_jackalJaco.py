@@ -134,7 +134,10 @@ class iGibsonEnv(BaseEnv):
         robot_ns = self.config_igibson["robot_ns"]
         self.ns = "/" + robot_ns + "_" + str(ros_node_id) + "/"
 
-        self.config_mobiman = Config(data_folder_path=data_folder_path) # type: ignore
+        if self.ros_node_id == 0:
+            self.config_mobiman = Config(data_folder_path=data_folder_path) # type: ignore
+        else:
+            self.config_mobiman = Config(data_folder_path="") # type: ignore
         print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] END CONFIG")
 
         print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] START")
@@ -144,7 +147,7 @@ class iGibsonEnv(BaseEnv):
         self.flag_run_sim = False
         self.init_flag = False
         self.flag_drl = flag_drl
-        self.init_goal_flag = False
+        #self.init_goal_flag = False
         self.init_occupancy_data_flag = False
         self.target_update_flag =  False
         self.init_update_flag0 = False
@@ -228,7 +231,9 @@ class iGibsonEnv(BaseEnv):
         self.spawned_objects = []
 
         ## Set Observation-Action-Reward data filename
-        self.oar_data_file = data_folder_path + "oar_data.csv"
+        self.oar_data_file = data_folder_path + self.ns[1:-1] + "_oar_data.csv"
+
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] oar_data_file: " + str(self.oar_data_file))
 
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] DEBUG_INF")
         #while 1:
@@ -275,10 +280,10 @@ class iGibsonEnv(BaseEnv):
             self.rospack = rospkg.RosPack()
             self.urdf_path = os.path.join(self.rospack.get_path('mobiman_simulation'), 'urdf')
             self.listener = tf.TransformListener()
-            self.last_update_base = rospy.Time.now()
-            self.last_update_arm = rospy.Time.now()
             self.bridge = CvBridge()
             self.br = tf.TransformBroadcaster()
+            #self.last_update_base = rospy.Time.now()
+            #self.last_update_arm = rospy.Time.now()
 
             # Subscribers
             rospy.Subscriber(self.ns + self.config_mobiman.mpc_data_msg_name, mpc_data, self.mpc_data_callback)
@@ -293,8 +298,9 @@ class iGibsonEnv(BaseEnv):
             
             #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::init_ros_env] BEFORE flag_run_sim: " + str(self.flag_run_sim))
             #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::init_ros_env] BEFORE flag_drl: " + str(self.flag_drl))
+            self.flag_run_sim = True
             if not self.flag_drl:
-                self.flag_run_sim = True
+                self.config_mobiman.goal_frame_name = rospy.get_param('gs_goal_frame_name', "")
 
             #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::init_ros_env] AFTER flag_run_sim: " + str(self.flag_run_sim))
             #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::init_ros_env] DEBUG_INF")
@@ -312,7 +318,7 @@ class iGibsonEnv(BaseEnv):
             self.joint_states_pub = rospy.Publisher(self.ns + self.config_mobiman.arm_state_msg_name, JointState, queue_size=10)
             #self.goal_status_pub = rospy.Publisher(self.config_mobiman.goal_status_msg_name, Bool, queue_size=1)
             #self.filtered_laser_pub = rospy.Publisher(self.robot_namespace + '/laser/scan_filtered', LaserScan, queue_size=1)
-            self.debug_visu_pub = rospy.Publisher(self.ns + 'debug_visu', MarkerArray, queue_size=1)
+            self.debug_visu_pub = rospy.Publisher(self.ns + 'debug_visu', MarkerArray, queue_size=5)
             self.model_state_pub = rospy.Publisher(self.ns + "model_states", ModelStates, queue_size=10)
 
             # Services
@@ -389,6 +395,7 @@ class iGibsonEnv(BaseEnv):
     '''
     def randomize_env(self):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] START")
+
         for idx, (key,val) in enumerate(self.objects.items()):
             if "conveyor" in key:
                 p.resetBasePositionAndOrientation(self.spawned_objects[idx], 
@@ -398,6 +405,18 @@ class iGibsonEnv(BaseEnv):
                 shift_x = random.uniform(self.config_mobiman.goal_range_min_x, self.config_mobiman.goal_range_max_x)
                 shift_y = random.uniform(self.config_mobiman.goal_range_min_y, self.config_mobiman.goal_range_max_y)
                 shift_z = random.uniform(self.config_mobiman.goal_range_min_z, self.config_mobiman.goal_range_max_z)
+
+                '''
+                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] DEBUG_WARNING: MANUALLY SET MODEL MODE! CHANGE IT BACK ASAP!!!")
+                if self.ros_node_id == 0:
+                    shift_x = -0.5
+                    shift_y = 0.0
+                    shift_z = 0.6
+                else:
+                    shift_x = 0.5
+                    shift_y = 0.0
+                    shift_z = 0.6
+                '''
 
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] conveyor_pos: " + str(self.conveyor_pos))
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] shift_x: " + str(shift_x))
@@ -717,6 +736,7 @@ class iGibsonEnv(BaseEnv):
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::mpc_data_callback] cmd_seq_prev: " + str(self.cmd_seq_prev))
                   
             cmd = self.cmd_base + self.cmd_arm
+            #cmd = self.cmd_base_init + self.cmd_arm_init
             self.robots[0].apply_action(cmd)
             self.simulator_step()
             self.cmd_seq_prev = self.cmd_seq
@@ -1335,9 +1355,9 @@ class iGibsonEnv(BaseEnv):
                     continue
             
             p = Point()
-            p.x = obs_mobiman_occupancy[3]
-            p.y = obs_mobiman_occupancy[4]
-            p.z = obs_mobiman_occupancy[5]
+            p.x = obs_mobiman_goal[0]
+            p.y = obs_mobiman_goal[1]
+            p.z = obs_mobiman_goal[2]
             debug_point_data = [p]
             robot_frame_name = self.ns + self.config_mobiman.robot_frame_name
             self.publish_debug_visu(debug_point_data, frame_name=robot_frame_name[1:])
@@ -1446,6 +1466,16 @@ class iGibsonEnv(BaseEnv):
     def take_action(self, action):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] START")
         
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] DEBUG_WARNING: MANUALLY SET MODEL MODE! CHANGE IT BACK ASAP!!!")
+        #action[0] = 1.0
+        #action[1] = 1.0
+        #action[2] = 0.0
+        #action[3] = 0.0
+        #action[4] = 1.5
+        #action[5] = 0.0
+        #action[6] = 0.0
+        #action[7] = 0.0
+
         self.step_action = action
         self.current_step += 1
 
@@ -2379,11 +2409,19 @@ class iGibsonEnv(BaseEnv):
         #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::initialize_robot_pose] y: " + str(self.init_robot_pose["y"]))
         #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::initialize_robot_pose] z: " + str(self.init_robot_pose["z"]))
         
-        #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::initialize_robot_pose] NUA NOTE: MANUAL ROBOT POSE !!! SET IT BACK !!!")
-        #self.init_robot_pose["x"] = 0.0
-        #self.init_robot_pose["y"] = 0.0
-        #self.init_robot_pose["z"] = 0.15
-        #robot0_init_yaw = math.pi
+        '''
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] DEBUG_WARNING: MANUALLY SET ROBOT POSE! CHANGE IT BACK ASAP!!!")
+        if self.ros_node_id == 0:
+            self.init_robot_pose["x"] = 1.0
+            self.init_robot_pose["y"] = 0.0
+            self.init_robot_pose["z"] = 0.15
+            robot0_init_yaw = 0.0
+        else:
+            self.init_robot_pose["x"] = 1.0
+            self.init_robot_pose["y"] = 0.0
+            self.init_robot_pose["z"] = 0.15
+            robot0_init_yaw = 0.0
+        '''
 
         robot0_init_quat = Quaternion.from_euler(0, 0, robot0_init_yaw)
         self.init_robot_pose["qx"] = robot0_init_quat.x
@@ -3379,7 +3417,7 @@ class iGibsonEnv(BaseEnv):
         while 1:
             continue
 
-        path = self.config_mobiman.data_folder_path + "oar_data.pkl"
+        path = self.config_mobiman.data_folder_path + self.ns[1:-1] + "_oar_data.pkl"
         trajectories = self.oar_data
         p = pathlib.Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)

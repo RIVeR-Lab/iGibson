@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 '''
-LAST UPDATE: 2024.01.24
+LAST UPDATE: 2024.02.17
 
 AUTHOR: Neset Unver Akmandor (NUA)
 
@@ -40,7 +40,7 @@ try:
     import gym
     import torch as th
     import torch.nn as nn
-    from stable_baselines3 import PPO
+    from stable_baselines3 import PPO, SAC, DDPG, A2C
     from stable_baselines3.common.evaluation import evaluate_policy
     from stable_baselines3.common.preprocessing import maybe_transpose
     from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
@@ -49,7 +49,7 @@ try:
     from stable_baselines3.common.callbacks import CheckpointCallback
 
 except ModuleNotFoundError:
-    print("stable-baselines3 is not installed. You would need to do: pip install stable-baselines3")
+    print("[stable_baselines3_ros_jackalJaco] stable-baselines3 is not installed. You would need to do: pip install stable-baselines3")
     exit(1)
 
 '''
@@ -80,7 +80,31 @@ def write_data(file, data):
     with file_status:
         write = csv.writer(file_status)
         write.writerows(data)
-        print("mobiman_drl_training::write_data -> Data is written in " + str(file))
+        print("[stable_baselines3_ros_jackalJaco::write_data] Data is written in " + str(file))
+
+'''
+DESCRIPTION: TODO...
+'''
+def read_data_size(file):
+    with open(file, newline='') as csvfile:
+        reader = csv.reader(csvfile, delimiter=',')
+        data = np.array(next(reader))
+        i = 0
+        for row in reader:
+            i += 1
+        return i
+
+'''
+DESCRIPTION: TODO...
+'''
+def get_param_value_from_training_log(log_path, param_name):
+
+    with open(log_path + 'training_log.csv') as csv_file:
+        
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        for row in csv_reader:
+            if row[0] == param_name:
+                return row[1]
 
 '''
 DESCRIPTION: TODO...
@@ -100,7 +124,7 @@ def print_training_log(log_path):
         line_count = 0
 
         for row in csv_reader:
-            print("mobiman_drl_training::print_training_log -> Line " + str(line_count) + " -> " + str(row[0]) + ": " + str(row[1]))
+            print("[stable_baselines3_ros_jackalJaco::print_training_log] Line " + str(line_count) + " -> " + str(row[0]) + ": " + str(row[1]))
             line_count += 1
 
 '''
@@ -174,7 +198,6 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         # Return a (B, self._features_dim) PyTorch tensor, where B is batch dimension.
         return th.cat(encoded_tensor_list, dim=1)
 
-
 def main(selection="user", headless=False, short_exec=False):
     """
     Example to set a training process with Stable Baselines 3
@@ -190,7 +213,7 @@ def main(selection="user", headless=False, short_exec=False):
     igibson_config_file = rospy.get_param('igibson_config_file', "")
     flag_drl = rospy.get_param('flag_drl', True)
     mode = rospy.get_param('mode', "")
-    deep_learning_algorithm = rospy.get_param('deep_learning_algorithm', "")
+    rl_algorithm = rospy.get_param('rl_algorithm', "")
     motion_planning_algorithm = rospy.get_param('motion_planning_algorithm', "")
     observation_space_type = rospy.get_param('observation_space_type', "")
     world_name = rospy.get_param('world_name', "")
@@ -212,7 +235,7 @@ def main(selection="user", headless=False, short_exec=False):
     print("[stable_baselines3_ros_jackalJaco::main] igibson_config_file: " + str(igibson_config_file))
     print("[stable_baselines3_ros_jackalJaco::main] flag_drl: " + str(flag_drl))
     print("[stable_baselines3_ros_jackalJaco::main] mode: " + str(mode))
-    print("[stable_baselines3_ros_jackalJaco::main] deep_learning_algorithm: " + str(deep_learning_algorithm))
+    print("[stable_baselines3_ros_jackalJaco::main] rl_algorithm: " + str(rl_algorithm))
     print("[stable_baselines3_ros_jackalJaco::main] motion_planning_algorithm: " + str(motion_planning_algorithm))
     print("[stable_baselines3_ros_jackalJaco::main] observation_space_type: " + str(observation_space_type))
     print("[stable_baselines3_ros_jackalJaco::main] world_name: " + str(world_name))
@@ -233,21 +256,22 @@ def main(selection="user", headless=False, short_exec=False):
 
     ## Create the folder name that the data is kept
     data_file_tag = createFileName()
-    data_folder_tag = data_file_tag + "_" + deep_learning_algorithm + "_mobiman" # type: ignore
+    data_folder_tag = data_file_tag + "_" + rl_algorithm + "_mobiman" # type: ignore
     data_name = data_folder_tag + "/" # type: ignore
     data_path_specific = mobiman_path + data_path
     data_folder_path = data_path_specific + data_name
 
     os.makedirs(data_folder_path, exist_ok=True)
 
+    new_trained_model_file = data_folder_path + "trained_model"
     training_log_file = data_folder_path + "training_log.csv"
-    tensorboard_log_path = data_folder_path + deep_learning_algorithm + "_tensorboard/"
+    tensorboard_log_path = data_folder_path + rl_algorithm + "_tensorboard/"
 
     ## Keep all parameters in an array to save
     training_log_data = []
     training_log_data.append(["igibson_config_file", igibson_config_file])
     training_log_data.append(["mode", mode])
-    training_log_data.append(["deep_learning_algorithm", deep_learning_algorithm])
+    training_log_data.append(["rl_algorithm", rl_algorithm])
     training_log_data.append(["motion_planning_algorithm", motion_planning_algorithm])
     training_log_data.append(["observation_space_type", observation_space_type])
     training_log_data.append(["world_name", world_name])
@@ -338,22 +362,82 @@ def main(selection="user", headless=False, short_exec=False):
     if observation_space_type == "mobiman_FC":
         
         n_actions = env.action_space
-        print("[mobiman_drl_training::__main__] n_actions: " + str(n_actions))
+        print("[stable_baselines3_ros_jackalJaco::__main__] n_actions: " + str(n_actions))
+        
+        if rl_algorithm == "SAC":
+            print("[stable_baselines3_ros_jackalJaco::__main__] SAC IS IN CHARGE!")
+            policy_kwargs = dict(net_arch=dict(pi=[400, 300], qf=[400, 300]), 
+                                 activation_fn=th.nn.ReLU)
+            
+            model = SAC(
+                "MlpPolicy", 
+                env, 
+                learning_rate=learning_rate, # type: ignore
+                learning_starts=100,
+                batch_size=batch_size, # type: ignore
+                train_freq=10,
+                ent_coef='auto', # type: ignore
+                tensorboard_log=tensorboard_log_path, 
+                policy_kwargs=policy_kwargs, 
+                device="cuda", 
+                verbose=1)
+        
+        elif rl_algorithm == "DDPG":
+            print("[stable_baselines3_ros_jackalJaco::__main__] NUA TODO: DDPG IS NOT IMPLEMENTED YET!")
+            print("[stable_baselines3_ros_jackalJaco::__main__] DEBUG_INF")
+            while 1:
+                continue
 
+        elif rl_algorithm == "A2C":
+            print("[stable_baselines3_ros_jackalJaco::__main__] A2C IS NOT IMPLEMENTED YET!")
+            print("[stable_baselines3_ros_jackalJaco::__main__] DEBUG_INF")
+            while 1:
+                continue
+
+        else:
+            print("[stable_baselines3_ros_jackalJaco::__main__] PPO IS IN CHARGE!")
+            policy_kwargs = dict(net_arch=dict(pi=[400, 300], vf=[400, 300]), 
+                                 activation_fn=th.nn.ReLU)
+            
+            model = PPO(
+                "MlpPolicy", 
+                env, 
+                learning_rate=learning_rate, # type: ignore
+                n_steps=n_steps, # type: ignore
+                batch_size=batch_size, # type: ignore
+                ent_coef=ent_coef, # type: ignore
+                tensorboard_log=tensorboard_log_path, 
+                policy_kwargs=policy_kwargs, 
+                device="cuda", 
+                verbose=1)
         
-        policy_kwargs = dict(activation_fn=th.nn.ReLU, net_arch=dict(pi=[400, 300], vf=[400, 300]))
-        model = PPO(
-            "MlpPolicy", 
-            env, 
-            learning_rate=learning_rate, # type: ignore
-            n_steps=n_steps, # type: ignore
-            batch_size=batch_size, # type: ignore
-            ent_coef=ent_coef, # type: ignore
-            tensorboard_log=tensorboard_log_path, 
-            policy_kwargs=policy_kwargs, 
-            device="cuda", 
-            verbose=1)
-        
+        if initial_training_path == "":
+            total_training_timesteps = training_timesteps
+            print("[stable_baselines3_ros_jackalJaco::__main__] No initial_trained_model is loaded!")
+            rospy.logdebug("[stable_baselines3_ros_jackalJaco::__main__] No initial_trained_model is loaded!")
+
+        else:
+            initial_trained_model_path = mobiman_path + data_path + initial_training_path + "trained_model" # type: ignore
+            initial_trained_model = initial_trained_model_path
+            
+            if rl_algorithm == "SAC":
+                model = SAC.load(initial_trained_model, env=None, tensorboard_log=tensorboard_log_path) # type: ignore
+            
+            elif rl_algorithm == "DDPG":
+                model = SAC.load(initial_trained_model, env=None, tensorboard_log=tensorboard_log_path) # type: ignore
+            
+            elif rl_algorithm == "A2C":
+                model = SAC.load(initial_trained_model, env=None, tensorboard_log=tensorboard_log_path) # type: ignore
+            
+            else:
+                model = PPO.load(initial_trained_model, env=None, tensorboard_log=tensorboard_log_path) # type: ignore
+            model.set_env(env)
+
+            training_log_path = mobiman_path + data_path + initial_training_path
+            total_training_timesteps = int(get_param_value_from_training_log(training_log_path, "total_training_timesteps")) + training_timesteps # type: ignore
+            print("[mobiman_drl_training::__main__] Loaded initial_trained_model: " + initial_trained_model)
+            #rospy.logdebug("[mobiman_drl_training::__main__] Loaded initial_trained_model: " + initial_trained_model)
+
         '''
         # Obtain the arguments/parameters for the policy and create the PPO model
         policy_kwargs = dict(
@@ -395,8 +479,6 @@ def main(selection="user", headless=False, short_exec=False):
     )
     '''
 
-    
-    
     '''
     print("BEFORE evaluate_policy 0")
     # Random Agent, evaluation before training
@@ -408,10 +490,33 @@ def main(selection="user", headless=False, short_exec=False):
     checkpoint_callback = CheckpointCallback(save_freq=training_checkpoint_freq, save_path=data_folder_path + '/training_checkpoints/', name_prefix='trained_model') # type: ignore
 
     print("[stable_baselines3_ros_jackalJaco::main] BEFORE learn")
-    # Train the model for the given number of steps
-    #total_timesteps = 100 if short_exec else 10000
+    start_learning = time.time()
+
+    print("[stable_baselines3_ros_jackalJaco::main] training_timesteps: " + str(training_timesteps))
+
     model.learn(training_timesteps, callback=checkpoint_callback, progress_bar=True) # type: ignore
+    end_learning = time.time()
     print("[stable_baselines3_ros_jackalJaco::main] AFTER learn")
+
+    model.save(new_trained_model_file) # type: ignore
+
+    learning_time = (end_learning - start_learning) / 60
+
+    #total_training_episodes = read_data_size(data_folder_path + "training_data.csv")
+
+    training_log_data = []
+    #training_log_data.append(["total_training_episodes", total_training_episodes])
+    training_log_data.append(["total_training_timesteps", total_training_timesteps])
+    training_log_data.append(["learning_time[min]", learning_time])
+
+    print("--------------")
+    print("[mobiman_drl_training::__main__] End of training!")
+    print("[mobiman_drl_training::__main__] learning_time[min]: " + str(learning_time))
+    print("--------------")
+    #rospy.logdebug("[mobiman_drl_training::__main__] End of training!")
+
+    ## Write all results into the log file of the training
+    write_data(training_log_file, training_log_data)
 
     '''
     print("BEFORE evaluate_policy 1")
