@@ -107,6 +107,7 @@ class iGibsonEnv(BaseEnv):
         config_file,
         scene_id=None,
         mode="headless",
+        drl_mode="training",
         action_timestep=1/5.0,
         physics_timestep=1/60.0,
         rendering_settings=None,
@@ -135,7 +136,7 @@ class iGibsonEnv(BaseEnv):
         self.ns = "/" + robot_ns + "_" + str(ros_node_id) + "/"
 
         if self.ros_node_id == 0:
-            self.config_mobiman = Config(data_folder_path=data_folder_path) # type: ignore
+            self.config_mobiman = Config(data_folder_path=data_folder_path, drl_mode=drl_mode) # type: ignore
         else:
             self.config_mobiman = Config(data_folder_path="") # type: ignore
         print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] END CONFIG")
@@ -144,9 +145,11 @@ class iGibsonEnv(BaseEnv):
 
         # NUA NOTE: DEPRECATE ALL UNNECESSARY VARIABLES!
         ### Initialize Variables
+        self.drl_mode = drl_mode
+        self.flag_drl = flag_drl
+
         self.flag_run_sim = False
         self.init_flag = False
-        self.flag_drl = flag_drl
         #self.init_goal_flag = False
         self.init_occupancy_data_flag = False
         self.target_update_flag =  False

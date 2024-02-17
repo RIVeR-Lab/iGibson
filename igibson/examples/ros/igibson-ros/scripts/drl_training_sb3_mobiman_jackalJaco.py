@@ -49,7 +49,7 @@ try:
     from stable_baselines3.common.callbacks import CheckpointCallback
 
 except ModuleNotFoundError:
-    print("[stable_baselines3_ros_jackalJaco] stable-baselines3 is not installed. You would need to do: pip install stable-baselines3")
+    print("[drl_training_sb3_mobiman_jackalJaco] stable-baselines3 is not installed. You would need to do: pip install stable-baselines3")
     exit(1)
 
 '''
@@ -80,7 +80,7 @@ def write_data(file, data):
     with file_status:
         write = csv.writer(file_status)
         write.writerows(data)
-        print("[stable_baselines3_ros_jackalJaco::write_data] Data is written in " + str(file))
+        print("[drl_training_sb3_mobiman_jackalJaco::write_data] Data is written in " + str(file))
 
 '''
 DESCRIPTION: TODO...
@@ -124,7 +124,7 @@ def print_training_log(log_path):
         line_count = 0
 
         for row in csv_reader:
-            print("[stable_baselines3_ros_jackalJaco::print_training_log] Line " + str(line_count) + " -> " + str(row[0]) + ": " + str(row[1]))
+            print("[drl_training_sb3_mobiman_jackalJaco::print_training_log] Line " + str(line_count) + " -> " + str(row[0]) + ": " + str(row[1]))
             line_count += 1
 
 '''
@@ -212,7 +212,7 @@ def main(selection="user", headless=False, short_exec=False):
     ## Initialize the parameters
     igibson_config_file = rospy.get_param('igibson_config_file', "")
     flag_drl = rospy.get_param('flag_drl', True)
-    mode = rospy.get_param('mode', "")
+    #mode = rospy.get_param('mode', "")
     rl_algorithm = rospy.get_param('rl_algorithm', "")
     motion_planning_algorithm = rospy.get_param('motion_planning_algorithm', "")
     observation_space_type = rospy.get_param('observation_space_type', "")
@@ -232,27 +232,27 @@ def main(selection="user", headless=False, short_exec=False):
     plot_moving_average_window_size_timesteps = rospy.get_param('plot_moving_average_window_size_timesteps', 0)
     plot_moving_average_window_size_episodes = rospy.get_param('plot_moving_average_window_size_episodes', 0)
 
-    print("[stable_baselines3_ros_jackalJaco::main] igibson_config_file: " + str(igibson_config_file))
-    print("[stable_baselines3_ros_jackalJaco::main] flag_drl: " + str(flag_drl))
-    print("[stable_baselines3_ros_jackalJaco::main] mode: " + str(mode))
-    print("[stable_baselines3_ros_jackalJaco::main] rl_algorithm: " + str(rl_algorithm))
-    print("[stable_baselines3_ros_jackalJaco::main] motion_planning_algorithm: " + str(motion_planning_algorithm))
-    print("[stable_baselines3_ros_jackalJaco::main] observation_space_type: " + str(observation_space_type))
-    print("[stable_baselines3_ros_jackalJaco::main] world_name: " + str(world_name))
-    print("[stable_baselines3_ros_jackalJaco::main] task_and_robot_environment_name: " + str(task_and_robot_environment_name))
-    print("[stable_baselines3_ros_jackalJaco::main] n_robot: " + str(n_robot))
-    print("[stable_baselines3_ros_jackalJaco::main] data_path: " + str(data_path))
-    print("[stable_baselines3_ros_jackalJaco::main] learning_rate: " + str(learning_rate))
-    print("[stable_baselines3_ros_jackalJaco::main] n_steps: " + str(n_steps))
-    print("[stable_baselines3_ros_jackalJaco::main] batch_size: " + str(batch_size))
-    print("[stable_baselines3_ros_jackalJaco::main] ent_coef: " + str(ent_coef))
-    print("[stable_baselines3_ros_jackalJaco::main] training_timesteps: " + str(training_timesteps))
-    print("[stable_baselines3_ros_jackalJaco::main] max_episode_steps: " + str(max_episode_steps))
-    print("[stable_baselines3_ros_jackalJaco::main] initial_training_path: " + str(initial_training_path))
-    print("[stable_baselines3_ros_jackalJaco::main] training_checkpoint_freq: " + str(training_checkpoint_freq))
-    print("[stable_baselines3_ros_jackalJaco::main] plot_title: " + str(plot_title))
-    print("[stable_baselines3_ros_jackalJaco::main] plot_moving_average_window_size_timesteps: " + str(plot_moving_average_window_size_timesteps))
-    print("[stable_baselines3_ros_jackalJaco::main] plot_moving_average_window_size_episodes: " + str(plot_moving_average_window_size_episodes))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] igibson_config_file: " + str(igibson_config_file))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] flag_drl: " + str(flag_drl))
+    #print("[drl_training_sb3_mobiman_jackalJaco::main] mode: " + str(mode))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] rl_algorithm: " + str(rl_algorithm))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] motion_planning_algorithm: " + str(motion_planning_algorithm))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] observation_space_type: " + str(observation_space_type))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] world_name: " + str(world_name))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] task_and_robot_environment_name: " + str(task_and_robot_environment_name))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] n_robot: " + str(n_robot))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] data_path: " + str(data_path))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] learning_rate: " + str(learning_rate))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] n_steps: " + str(n_steps))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] batch_size: " + str(batch_size))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] ent_coef: " + str(ent_coef))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] training_timesteps: " + str(training_timesteps))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] max_episode_steps: " + str(max_episode_steps))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] initial_training_path: " + str(initial_training_path))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] training_checkpoint_freq: " + str(training_checkpoint_freq))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] plot_title: " + str(plot_title))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] plot_moving_average_window_size_timesteps: " + str(plot_moving_average_window_size_timesteps))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] plot_moving_average_window_size_episodes: " + str(plot_moving_average_window_size_episodes))
 
     ## Create the folder name that the data is kept
     data_file_tag = createFileName()
@@ -270,7 +270,7 @@ def main(selection="user", headless=False, short_exec=False):
     ## Keep all parameters in an array to save
     training_log_data = []
     training_log_data.append(["igibson_config_file", igibson_config_file])
-    training_log_data.append(["mode", mode])
+    #training_log_data.append(["mode", mode])
     training_log_data.append(["rl_algorithm", rl_algorithm])
     training_log_data.append(["motion_planning_algorithm", motion_planning_algorithm])
     training_log_data.append(["observation_space_type", observation_space_type])
@@ -293,7 +293,7 @@ def main(selection="user", headless=False, short_exec=False):
     ## Write all parameters into the log file of the training
     write_data(training_log_file, training_log_data)
 
-    #print("[stable_baselines3_ros_jackalJaco::main] DEBUG_INF")
+    #print("[drl_training_sb3_mobiman_jackalJaco::main] DEBUG_INF")
     #while 1:
     #    continue
     
@@ -303,7 +303,7 @@ def main(selection="user", headless=False, short_exec=False):
 
     igibson_config = parse_config(igibson_config_data)
 
-    mode = igibson_config["mode"]
+    pybullet_mode = igibson_config["mode"]
     action_timestep = igibson_config["action_timestep"]
     physics_timestep = igibson_config["physics_timestep"]
     use_pb_gui = igibson_config["use_pb_gui"]
@@ -311,20 +311,20 @@ def main(selection="user", headless=False, short_exec=False):
     tensorboard_log_dir = igibson.ros_path + "/log"
     num_environments = n_robot
 
-    print("[stable_baselines3_ros_jackalJaco::main] ros_path: " + str(igibson.ros_path))
-    print("[stable_baselines3_ros_jackalJaco::main] config_file: " + str(igibson_config_file))
-    print("[stable_baselines3_ros_jackalJaco::main] config_path: " + str(igibson_config_path))
-    print("[stable_baselines3_ros_jackalJaco::main] config_data: " + str(igibson_config_data))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] ros_path: " + str(igibson.ros_path))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] config_file: " + str(igibson_config_file))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] config_path: " + str(igibson_config_path))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] config_data: " + str(igibson_config_data))
 
-    print("[stable_baselines3_ros_jackalJaco::main] flag_drl: " + str(flag_drl))
-    print("[stable_baselines3_ros_jackalJaco::main] mode: " + str(mode))
-    print("[stable_baselines3_ros_jackalJaco::main] action_timestep: " + str(action_timestep))
-    print("[stable_baselines3_ros_jackalJaco::main] physics_timestep: " + str(physics_timestep))
-    print("[stable_baselines3_ros_jackalJaco::main] use_pb_gui: " + str(use_pb_gui))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] flag_drl: " + str(flag_drl))
+    #print("[drl_training_sb3_mobiman_jackalJaco::main] mode: " + str(mode))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] action_timestep: " + str(action_timestep))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] physics_timestep: " + str(physics_timestep))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] use_pb_gui: " + str(use_pb_gui))
     
-    print("[stable_baselines3_ros_jackalJaco::main] tensorboard_log_dir: " + str(tensorboard_log_dir))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] tensorboard_log_dir: " + str(tensorboard_log_dir))
 
-    #print("[stable_baselines3_ros_jackalJaco::main] DEBUG_INF")
+    #print("[drl_training_sb3_mobiman_jackalJaco::main] DEBUG_INF")
     #while 1:
     #    continue
 
@@ -333,7 +333,8 @@ def main(selection="user", headless=False, short_exec=False):
         def _init() -> iGibsonEnv:
             env = iGibsonEnv(
                 config_file=igibson_config_path,
-                mode=mode,
+                mode=pybullet_mode,
+                drl_mode="training",
                 action_timestep=action_timestep,
                 physics_timestep=physics_timestep,
                 init_ros_node=True,
@@ -354,7 +355,7 @@ def main(selection="user", headless=False, short_exec=False):
     env = SubprocVecEnv([make_env(i) for i in range(num_environments)])
     env = VecMonitor(env)
 
-    #print("[stable_baselines3_ros_jackalJaco::main] DEBUG_INF")
+    #print("[drl_training_sb3_mobiman_jackalJaco::main] DEBUG_INF")
     #while 1:
     #    continue
 
@@ -362,10 +363,10 @@ def main(selection="user", headless=False, short_exec=False):
     if observation_space_type == "mobiman_FC":
         
         n_actions = env.action_space
-        print("[stable_baselines3_ros_jackalJaco::__main__] n_actions: " + str(n_actions))
+        print("[drl_training_sb3_mobiman_jackalJaco::__main__] n_actions: " + str(n_actions))
         
         if rl_algorithm == "SAC":
-            print("[stable_baselines3_ros_jackalJaco::__main__] SAC IS IN CHARGE!")
+            print("[drl_training_sb3_mobiman_jackalJaco::__main__] SAC IS IN CHARGE!")
             policy_kwargs = dict(net_arch=dict(pi=[400, 300], qf=[400, 300]), 
                                  activation_fn=th.nn.ReLU)
             
@@ -383,19 +384,19 @@ def main(selection="user", headless=False, short_exec=False):
                 verbose=1)
         
         elif rl_algorithm == "DDPG":
-            print("[stable_baselines3_ros_jackalJaco::__main__] NUA TODO: DDPG IS NOT IMPLEMENTED YET!")
-            print("[stable_baselines3_ros_jackalJaco::__main__] DEBUG_INF")
+            print("[drl_training_sb3_mobiman_jackalJaco::__main__] NUA TODO: DDPG IS NOT IMPLEMENTED YET!")
+            print("[drl_training_sb3_mobiman_jackalJaco::__main__] DEBUG_INF")
             while 1:
                 continue
 
         elif rl_algorithm == "A2C":
-            print("[stable_baselines3_ros_jackalJaco::__main__] A2C IS NOT IMPLEMENTED YET!")
-            print("[stable_baselines3_ros_jackalJaco::__main__] DEBUG_INF")
+            print("[drl_training_sb3_mobiman_jackalJaco::__main__] A2C IS NOT IMPLEMENTED YET!")
+            print("[drl_training_sb3_mobiman_jackalJaco::__main__] DEBUG_INF")
             while 1:
                 continue
 
         else:
-            print("[stable_baselines3_ros_jackalJaco::__main__] PPO IS IN CHARGE!")
+            print("[drl_training_sb3_mobiman_jackalJaco::__main__] PPO IS IN CHARGE!")
             policy_kwargs = dict(net_arch=dict(pi=[400, 300], vf=[400, 300]), 
                                  activation_fn=th.nn.ReLU)
             
@@ -413,8 +414,8 @@ def main(selection="user", headless=False, short_exec=False):
         
         if initial_training_path == "":
             total_training_timesteps = training_timesteps
-            print("[stable_baselines3_ros_jackalJaco::__main__] No initial_trained_model is loaded!")
-            rospy.logdebug("[stable_baselines3_ros_jackalJaco::__main__] No initial_trained_model is loaded!")
+            print("[drl_training_sb3_mobiman_jackalJaco::__main__] No initial_trained_model is loaded!")
+            rospy.logdebug("[drl_training_sb3_mobiman_jackalJaco::__main__] No initial_trained_model is loaded!")
 
         else:
             initial_trained_model_path = mobiman_path + data_path + initial_training_path + "trained_model" # type: ignore
@@ -489,14 +490,14 @@ def main(selection="user", headless=False, short_exec=False):
 
     checkpoint_callback = CheckpointCallback(save_freq=training_checkpoint_freq, save_path=data_folder_path + '/training_checkpoints/', name_prefix='trained_model') # type: ignore
 
-    print("[stable_baselines3_ros_jackalJaco::main] BEFORE learn")
+    print("[drl_training_sb3_mobiman_jackalJaco::main] BEFORE learn")
     start_learning = time.time()
 
-    print("[stable_baselines3_ros_jackalJaco::main] training_timesteps: " + str(training_timesteps))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] training_timesteps: " + str(training_timesteps))
 
     model.learn(training_timesteps, callback=checkpoint_callback, progress_bar=True) # type: ignore
     end_learning = time.time()
-    print("[stable_baselines3_ros_jackalJaco::main] AFTER learn")
+    print("[drl_training_sb3_mobiman_jackalJaco::main] AFTER learn")
 
     model.save(new_trained_model_file) # type: ignore
 

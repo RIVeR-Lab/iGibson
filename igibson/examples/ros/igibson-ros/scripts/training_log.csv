@@ -402,3 +402,9 @@ action_shape,"(8,)"
 n_selfcoldistance,2
 observation_shape,"(25,)"
 action_shape,"(8,)"
+n_selfcoldistance,2
+observation_shape,"(25,)"
+action_shape,"(8,)"
+n_selfcoldistance,2
+observation_shape,"(25,)"
+action_shape,"(8,)"
