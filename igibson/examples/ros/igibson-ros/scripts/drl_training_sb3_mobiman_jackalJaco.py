@@ -260,8 +260,7 @@ def main(selection="user", headless=False, short_exec=False):
     data_file_tag = createFileName()
     data_folder_tag = data_file_tag + "_" + rl_algorithm + "_mobiman" # type: ignore
     data_name = data_folder_tag + "/" # type: ignore
-    data_path_specific = mobiman_path + data_path
-    data_folder_path = data_path_specific + data_name
+    data_folder_path = mobiman_path + data_path + data_name
 
     os.makedirs(data_folder_path, exist_ok=True)
 

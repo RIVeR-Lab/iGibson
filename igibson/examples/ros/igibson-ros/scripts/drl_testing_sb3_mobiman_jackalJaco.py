@@ -344,15 +344,18 @@ def main(selection="user", headless=False, short_exec=False):
     #data_file_tag = createFileName()
     #data_folder_tag = data_file_tag + "_" + rl_algorithm + "_mobiman" # type: ignore
     #data_name = data_folder_tag + "/" # type: ignore
-    data_path_specific = mobiman_path + data_path
-    data_folder_path = data_path_specific + initial_training_path
+    data_folder_path = mobiman_path + data_path
+    if initial_training_path:
+        data_folder_path += initial_training_path
+    else:
+        data_folder_path += "benchmark/"
 
     print("[drl_testing_sb3_mobiman_jackalJaco::main] data_folder_path: " + str(data_folder_path))
 
     #os.makedirs(data_folder_path, exist_ok=True)
 
     #new_trained_model_file = data_folder_path + "trained_model"
-    testing_log_file = data_folder_path + "testing_log.csv"
+    testing_log_file = data_folder_path + "testing_log_" + testing_benchmark_name + ".csv"
     tensorboard_log_path = data_folder_path + rl_algorithm + "_testing_tensorboard/"
 
     ## Keep all parameters in an array to save
@@ -427,11 +430,21 @@ def main(selection="user", headless=False, short_exec=False):
 
     print("[drl_testing_sb3_mobiman_jackalJaco::main] BEFORE Loading initial_training_path: " + initial_training_path)
     if initial_training_path == "":
-        print("[drl_testing_sb3_mobiman_jackalJaco::main] ERROR: No initial_trained_model is loaded!")
-        print("[drl_testing_sb3_mobiman_jackalJaco::main] DEBUG_INF")
-        while 1:
-            continue
+        print("[drl_testing_sb3_mobiman_jackalJaco::main] No initial_trained_model is loaded!")
+        print("[drl_testing_sb3_mobiman_jackalJaco::main] Benchmarking " + str(testing_benchmark_name) + "...")
     
+        policy_kwargs = dict(net_arch=dict(pi=[400, 300], vf=[400, 300]), 
+                             activation_fn=th.nn.ReLU)
+
+        ## NUA NOTE: THIS MODEL IS UNNECESSARY FOR BENCHMARKS THAT DO NOT USE RL! 
+        model = PPO(
+            "MlpPolicy", 
+            env, 
+            tensorboard_log=tensorboard_log_path, 
+            policy_kwargs=policy_kwargs, 
+            device="cuda", 
+            verbose=1)
+
     else:
         initial_trained_model_path = mobiman_path + data_path + initial_training_path + "trained_model" # type: ignore
         
@@ -447,22 +460,21 @@ def main(selection="user", headless=False, short_exec=False):
         else:
             model = PPO.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
         #model.set_env(env)
-
-    print("[drl_testing_sb3_mobiman_jackalJaco::main] Loaded initial_trained_model_path: " + initial_trained_model_path)
+        print("[drl_testing_sb3_mobiman_jackalJaco::main] Loaded initial_trained_model_path: " + initial_trained_model_path)
 
     # Evaluate the policy after training
     start_testing = time.time()
     while(not env.flag_testing_done):
-        print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-        print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-        print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+        #print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+        #print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+        #print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
         print("[drl_testing_sb3_mobiman_jackalJaco::main] Testing eval " + str(env.testing_eval_idx) + " and state " + str(env.testing_idx))
         mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=n_testing_eval_episodes)
-        print("[drl_testing_sb3_mobiman_jackalJaco::main] Mean reward: " + str(mean_reward))
-        print("[drl_testing_sb3_mobiman_jackalJaco::main] Std reward: +/-" + str(std_reward))
-        print("")
-        print("")
-        print("")
+        #print("[drl_testing_sb3_mobiman_jackalJaco::main] Mean reward: " + str(mean_reward))
+        #print("[drl_testing_sb3_mobiman_jackalJaco::main] Std reward: +/-" + str(std_reward))
+        #print("")
+        #print("")
+        print("----------")
     end_testing = time.time()
     testing_time = (end_testing - start_testing) / 60
 
@@ -473,6 +485,7 @@ def main(selection="user", headless=False, short_exec=False):
 
     print("[drl_testing_sb3_mobiman_jackalJaco::main] End of testing!")
     print("[drl_testing_sb3_mobiman_jackalJaco::main] testing_time[min]: " + str(testing_time))
+    print("")
 
     '''
     print("BEFORE evaluate_policy 1")

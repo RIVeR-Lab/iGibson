@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 '''
-LAST UPDATE: 2024.02.21
+LAST UPDATE: 2024.02.22
 
 AUTHOR: Neset Unver Akmandor (NUA)
         Sarvesh Prajapati (SP)
@@ -1548,7 +1548,7 @@ class iGibsonEnv(BaseEnv):
         #action[6] = 0.0
         #action[7] = 0.0
 
-        if self.drl_mode == "testing" and self.config_mobiman.testing_benchmark_name == "ocs2_wb":
+        if self.drl_mode == "testing" and self.config_mobiman.testing_benchmark_name == "ocs2wb":
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] testing_benchmark_name: " + str(self.config_mobiman.testing_benchmark_name))
             action[0] = 1.0     # Model mode: Whole-body
             action[1] = 1.0     # Target mode: Goal
@@ -2428,17 +2428,17 @@ class iGibsonEnv(BaseEnv):
         ### NUA TODO: SET ALL PARAMETERS BELOW IN CONFIG!
 
         ## Robot Pose
-        testing_range_robot_pos_x_min = -1.0
-        testing_range_robot_pos_x_max = 1.0
-        testing_range_robot_n_points_x = 2
+        testing_range_robot_pos_x_min = -1.5
+        testing_range_robot_pos_x_max = 1.5
+        testing_range_robot_n_points_x = 3
 
-        testing_range_robot_pos_y_min = -1.0
+        testing_range_robot_pos_y_min = -1.5
         testing_range_robot_pos_y_max = 1.0
-        testing_range_robot_n_points_y = 1
+        testing_range_robot_n_points_y = 3
 
         testing_range_robot_yaw_min = 0.0 # -0.5 * math.pi
         testing_range_robot_yaw_max = 1.5 * math.pi # math.pi
-        testing_range_robot_n_yaw = 2
+        testing_range_robot_n_yaw = 4
 
         robot_pos_x_lin = np.linspace(testing_range_robot_pos_x_min, testing_range_robot_pos_x_max, testing_range_robot_n_points_x)
         robot_pos_y_lin = np.linspace(testing_range_robot_pos_y_min, testing_range_robot_pos_y_max, testing_range_robot_n_points_y)
@@ -2447,7 +2447,7 @@ class iGibsonEnv(BaseEnv):
         ## Objects
         testing_range_box_pos_x_min = self.config_mobiman.goal_range_min_x
         testing_range_box_pos_x_max = self.config_mobiman.goal_range_max_x
-        testing_range_box_n_points_x = 1
+        testing_range_box_n_points_x = 3
 
         testing_range_box_pos_y_min = self.config_mobiman.goal_range_min_y
         testing_range_box_pos_y_max = self.config_mobiman.goal_range_max_y
