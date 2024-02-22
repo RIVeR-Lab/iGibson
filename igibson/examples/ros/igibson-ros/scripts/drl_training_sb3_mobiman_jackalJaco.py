@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 '''
-LAST UPDATE: 2024.02.17
+LAST UPDATE: 2024.02.21
 
 AUTHOR: Neset Unver Akmandor (NUA)
 
@@ -41,8 +41,8 @@ try:
     import torch as th
     import torch.nn as nn
     from stable_baselines3 import PPO, SAC, DDPG, A2C
-    from stable_baselines3.common.evaluation import evaluate_policy
-    from stable_baselines3.common.preprocessing import maybe_transpose
+    #from stable_baselines3.common.evaluation import evaluate_policy
+    #from stable_baselines3.common.preprocessing import maybe_transpose
     from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
     from stable_baselines3.common.utils import set_random_seed
     from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
@@ -99,7 +99,7 @@ DESCRIPTION: TODO...
 '''
 def get_param_value_from_training_log(log_path, param_name):
 
-    with open(log_path + 'training_log.csv') as csv_file:
+    with open(log_path) as csv_file:
         
         csv_reader = csv.reader(csv_file, delimiter=',')
         for row in csv_reader:
@@ -118,7 +118,7 @@ DESCRIPTION: TODO...
 '''
 def print_training_log(log_path):
 
-    with open(log_path + 'training_log.csv') as csv_file:
+    with open(log_path) as csv_file:
         
         csv_reader = csv.reader(csv_file, delimiter=',')
         line_count = 0
@@ -210,6 +210,7 @@ def main(selection="user", headless=False, short_exec=False):
     mobiman_path = rospack.get_path('mobiman_simulation') + "/"
 
     ## Initialize the parameters
+    training_log_name = rospy.get_param('training_log_name', "")
     igibson_config_file = rospy.get_param('igibson_config_file', "")
     flag_drl = rospy.get_param('flag_drl', True)
     #mode = rospy.get_param('mode', "")
@@ -232,6 +233,7 @@ def main(selection="user", headless=False, short_exec=False):
     plot_moving_average_window_size_timesteps = rospy.get_param('plot_moving_average_window_size_timesteps', 0)
     plot_moving_average_window_size_episodes = rospy.get_param('plot_moving_average_window_size_episodes', 0)
 
+    print("[drl_training_sb3_mobiman_jackalJaco::main] training_log_name: " + str(training_log_name))
     print("[drl_training_sb3_mobiman_jackalJaco::main] igibson_config_file: " + str(igibson_config_file))
     print("[drl_training_sb3_mobiman_jackalJaco::main] flag_drl: " + str(flag_drl))
     #print("[drl_training_sb3_mobiman_jackalJaco::main] mode: " + str(mode))
@@ -264,7 +266,7 @@ def main(selection="user", headless=False, short_exec=False):
     os.makedirs(data_folder_path, exist_ok=True)
 
     new_trained_model_file = data_folder_path + "trained_model"
-    training_log_file = data_folder_path + "training_log.csv"
+    training_log_file = data_folder_path + training_log_name + ".csv"
     tensorboard_log_path = data_folder_path + rl_algorithm + "_tensorboard/"
 
     ## Keep all parameters in an array to save
@@ -317,7 +319,7 @@ def main(selection="user", headless=False, short_exec=False):
     print("[drl_training_sb3_mobiman_jackalJaco::main] config_data: " + str(igibson_config_data))
 
     print("[drl_training_sb3_mobiman_jackalJaco::main] flag_drl: " + str(flag_drl))
-    #print("[drl_training_sb3_mobiman_jackalJaco::main] mode: " + str(mode))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] pybullet_mode: " + str(pybullet_mode))
     print("[drl_training_sb3_mobiman_jackalJaco::main] action_timestep: " + str(action_timestep))
     print("[drl_training_sb3_mobiman_jackalJaco::main] physics_timestep: " + str(physics_timestep))
     print("[drl_training_sb3_mobiman_jackalJaco::main] use_pb_gui: " + str(use_pb_gui))
@@ -425,16 +427,16 @@ def main(selection="user", headless=False, short_exec=False):
                 model = SAC.load(initial_trained_model, env=None, tensorboard_log=tensorboard_log_path) # type: ignore
             
             elif rl_algorithm == "DDPG":
-                model = SAC.load(initial_trained_model, env=None, tensorboard_log=tensorboard_log_path) # type: ignore
+                model = DDPG.load(initial_trained_model, env=None, tensorboard_log=tensorboard_log_path) # type: ignore
             
             elif rl_algorithm == "A2C":
-                model = SAC.load(initial_trained_model, env=None, tensorboard_log=tensorboard_log_path) # type: ignore
+                model = A2C.load(initial_trained_model, env=None, tensorboard_log=tensorboard_log_path) # type: ignore
             
             else:
                 model = PPO.load(initial_trained_model, env=None, tensorboard_log=tensorboard_log_path) # type: ignore
             model.set_env(env)
 
-            training_log_path = mobiman_path + data_path + initial_training_path
+            training_log_path = mobiman_path + data_path + initial_training_path + training_log_name + ".csv"
             total_training_timesteps = int(get_param_value_from_training_log(training_log_path, "total_training_timesteps")) + training_timesteps # type: ignore
             print("[mobiman_drl_training::__main__] Loaded initial_trained_model: " + initial_trained_model)
             #rospy.logdebug("[mobiman_drl_training::__main__] Loaded initial_trained_model: " + initial_trained_model)

@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 '''
-LAST UPDATE: 2024.02.15
+LAST UPDATE: 2024.02.21
 
 AUTHOR: Neset Unver Akmandor (NUA)
         Sarvesh Prajapati (SP)
@@ -159,8 +159,8 @@ class iGibsonEnv(BaseEnv):
         self.callback_update_flag = False
         self.episode_done = False
         self.reached_goal = False
-        self.episode_num = 1
         self.current_episode = 0 # NUA NOTE: DEPRECATE!
+        self.episode_num = 1
         self.step_num = 1
         self.total_step_num = 1
         self.total_collisions = 0
@@ -183,11 +183,18 @@ class iGibsonEnv(BaseEnv):
         self.mpc_action_result = 0
         self.mpc_action_result_model_mode = -1
         self.mpc_action_complete = False
+        
+        self.testing_idx = 0
+        self.testing_eval_idx = 1
+        self.flag_testing_done = False
 
         # Variables for saving OARS data
         self.data = None
-        self.oars_data = {'Index':[], 'Observation':[], 'Action':[], 'Reward':[]}
-        self.idx = 1
+        self.oars_data = {'episode_index':[], 'step_index':[], 'observation':[], 'action':[], 'reward':[], 'result':[]}
+        if self.drl_mode == "testing":
+            self.oars_data['testing_index'] = []
+            self.oars_data['testing_state'] = []
+            self.oars_data['testing_eval_index'] = []
         self.termination_reason = ''
         self.model_mode = -1
         
@@ -203,11 +210,6 @@ class iGibsonEnv(BaseEnv):
         self.mobiman_goal_obs_msg = None
         self.mobiman_occupancy_obs_msg = None
         self.selfcoldistance_msg = None
-
-        #self.training_data = []
-        #self.training_data.append(["episode_reward"])
-        #self.oar_data = []
-        self.episode_oar_data = dict(obs=[], acts=[], infos=None, terminal=[], rews=[])
 
         # Set initial command
         self.ctr_seq = 0
@@ -233,9 +235,19 @@ class iGibsonEnv(BaseEnv):
         self.objects = objects
         self.spawned_objects = []
 
-        ## Set Observation-Action-Reward data filename
-        self.oar_data_file = data_folder_path + self.ns[1:-1] + "_oar_data.csv"
-
+        if self.drl_mode == "training":
+            self.oar_data_file = data_folder_path + "oar_data_" + drl_mode + "_" + self.ns[1:-1] + ".csv"
+        
+        elif self.drl_mode == "testing":
+            self.initialize_testing_domain()
+            self.oar_data_file = data_folder_path + "oar_data_" + drl_mode + "_" + self.ns[1:-1] + "_" + self.config_mobiman.testing_benchmark_name + ".csv"
+        
+        else:
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] ERROR: Invalid drl_mode!")
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] DEBUG_INF")
+            while 1:
+                continue
+        
         print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] oar_data_file: " + str(self.oar_data_file))
 
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] DEBUG_INF")
@@ -328,11 +340,10 @@ class iGibsonEnv(BaseEnv):
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::init_ros_env] service_set_mrt_ready: " + str(self.ns + 'set_mrt_ready'))
             rospy.Service(self.ns + 'set_mrt_ready', setBool, self.service_set_mrt_ready)
             rospy.Service(self.ns + 'set_mpc_action_result', setMPCActionResult, self.service_set_mpc_action_result)
-            
-            # Timers
-            self.conveyor_pos = self.config_igibson["conveyor_pos"]
+
             self.create_objects(self.objects)
-            
+
+            # Timers
             rospy.Timer(rospy.Duration(0.01), self.timer_transform)
             rospy.Timer(rospy.Duration(0.01), self.timer_update)
             rospy.Timer(rospy.Duration(0.01), self.timer_sim)
@@ -372,23 +383,55 @@ class iGibsonEnv(BaseEnv):
     '''
     def create_objects(self, objects):
         print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::create_objects] START")
-        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::create_objects] conveyor_pos: " + str(self.conveyor_pos))
 
         for key,val in objects.items():
             if "conveyor" in key:
-                pointer = p.loadURDF(os.path.join(self.urdf_path, f"{key}.urdf"),
-                   basePosition = self.conveyor_pos[:],
-                   baseOrientation = [0, 0, 0, 1],
-                   )
-                self.spawned_objects.append(pointer)
+
+                if self.drl_mode == "training":
+                    self.conveyor_pos = self.config_igibson["conveyor_pos"]
+                    pointer = p.loadURDF(os.path.join(self.urdf_path, f"{key}.urdf"),
+                                         basePosition = self.conveyor_pos[:],
+                                         baseOrientation = [0, 0, 0, 1])
+                    self.spawned_objects.append(pointer)
+
+                elif self.drl_mode == "testing":
+                    self.conveyor_pos = self.config_igibson["conveyor_pos"]
+                    pointer = p.loadURDF(os.path.join(self.urdf_path, f"{key}.urdf"),
+                                         basePosition = self.conveyor_pos[:],
+                                         baseOrientation = [0, 0, 0, 1])
+                    self.spawned_objects.append(pointer)
+
+                else:
+                    print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::create_objects] Invalid drl_mode!")
+                    print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::create_objects] DEBUG_INF_0")
+                    while 1:
+                        continue
+
             else:
-                temp_pos = self.conveyor_pos[:]
-                temp_pos[2] += 1.0
-                pointer = p.loadURDF(os.path.join(self.urdf_path, f"{key}.urdf"),
-                   basePosition = temp_pos,
-                   baseOrientation = [0, 0, 0, 1],
-                   )
-                self.spawned_objects.append(pointer)
+                if self.drl_mode == "training":
+                    temp_pos = self.conveyor_pos[:]
+                    temp_pos[2] += 1.0
+                    pointer = p.loadURDF(os.path.join(self.urdf_path, f"{key}.urdf"),
+                                         basePosition = temp_pos,
+                                         baseOrientation = [0, 0, 0, 1])
+                    self.spawned_objects.append(pointer)
+                
+                elif self.drl_mode == "testing":
+                    temp_pos = self.conveyor_pos[:]
+                    temp_pos[2] += 1.0
+                    pointer = p.loadURDF(os.path.join(self.urdf_path, f"{key}.urdf"),
+                                         basePosition = temp_pos,
+                                         baseOrientation = [0, 0, 0, 1])
+                    self.spawned_objects.append(pointer)
+
+                else:
+                    print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::create_objects] Invalid drl_mode!")
+                    print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::create_objects] DEBUG_INF_1")
+                    while 1:
+                        continue
+
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::create_objects] conveyor_pos: " + str(self.conveyor_pos))
+
         self.randomize_domain()
 
         print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::create_objects] END")
@@ -401,14 +444,40 @@ class iGibsonEnv(BaseEnv):
 
         for idx, (key,val) in enumerate(self.objects.items()):
             if "conveyor" in key:
-                p.resetBasePositionAndOrientation(self.spawned_objects[idx], 
-                                                  posObj=self.conveyor_pos[:], 
-                                                  ornObj=[0, 0, 0, 1])
-            else:
-                shift_x = random.uniform(self.config_mobiman.goal_range_min_x, self.config_mobiman.goal_range_max_x)
-                shift_y = random.uniform(self.config_mobiman.goal_range_min_y, self.config_mobiman.goal_range_max_y)
-                shift_z = random.uniform(self.config_mobiman.goal_range_min_z, self.config_mobiman.goal_range_max_z)
 
+                if self.drl_mode == "training":
+                    p.resetBasePositionAndOrientation(self.spawned_objects[idx], 
+                                                      posObj=self.conveyor_pos[:], 
+                                                      ornObj=[0, 0, 0, 1])
+                
+                elif self.drl_mode == "testing":
+                    p.resetBasePositionAndOrientation(self.spawned_objects[idx], 
+                                                      posObj=self.conveyor_pos[:], 
+                                                      ornObj=[0, 0, 0, 1])
+                
+                else:
+                    print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] Invalid drl_mode!")
+                    print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] DEBUG_INF_0")
+                    while 1:
+                        continue
+            else:
+                
+                if self.drl_mode == "training":
+                    shift_x = random.uniform(self.config_mobiman.goal_range_min_x, self.config_mobiman.goal_range_max_x)
+                    shift_y = random.uniform(self.config_mobiman.goal_range_min_y, self.config_mobiman.goal_range_max_y)
+                    shift_z = random.uniform(self.config_mobiman.goal_range_min_z, self.config_mobiman.goal_range_max_z)
+                
+                elif self.drl_mode == "testing":
+                    shift_x = self.testing_samples[self.testing_idx][3]
+                    shift_y = self.testing_samples[self.testing_idx][4]
+                    shift_z = self.testing_samples[self.testing_idx][5]
+
+                else:
+                    print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] Invalid drl_mode!")
+                    print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] DEBUG_INF_1")
+                    while 1:
+                        continue
+                
                 '''
                 print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] DEBUG_WARNING: MANUALLY SET MODEL MODE! CHANGE IT BACK ASAP!!!")
                 if self.ros_node_id == 0:
@@ -421,10 +490,10 @@ class iGibsonEnv(BaseEnv):
                     shift_z = 0.6
                 '''
 
-                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] conveyor_pos: " + str(self.conveyor_pos))
-                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] shift_x: " + str(shift_x))
-                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] shift_y: " + str(shift_y))
-                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] shift_z: " + str(shift_z))
+                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] conveyor_pos: " + str(self.conveyor_pos))
+                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] shift_x: " + str(shift_x))
+                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] shift_y: " + str(shift_y))
+                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] shift_z: " + str(shift_z))
 
                 temp_pos = self.conveyor_pos[:]
                 temp_pos[0] += shift_x
@@ -1479,6 +1548,11 @@ class iGibsonEnv(BaseEnv):
         #action[6] = 0.0
         #action[7] = 0.0
 
+        if self.drl_mode == "testing" and self.config_mobiman.testing_benchmark_name == "ocs2_wb":
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] testing_benchmark_name: " + str(self.config_mobiman.testing_benchmark_name))
+            action[0] = 1.0     # Model mode: Whole-body
+            action[1] = 1.0     # Target mode: Goal
+
         self.step_action = action
         self.current_step += 1
 
@@ -1547,6 +1621,7 @@ class iGibsonEnv(BaseEnv):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::_compute_reward] START")
 
         '''
+        ### NUA NOTE: NEEDS TO BE REVIEWED, IT WAS UPDATED AND DEPENDS THE TASK!
         goal_pos_x = observations[0]
         goal_pos_y = observations[1]
         goal_pos_z = observations[2]
@@ -1589,15 +1664,8 @@ class iGibsonEnv(BaseEnv):
             elif self.termination_reason == 'max_step':
                 self.step_reward = self.config_mobiman.reward_terminal_max_step
             else:
-                ### NUA NOTE: CHECKING IF THE ELSE CASE IS REACHABLE!
                 self.step_reward = self.config_mobiman.reward_terminal_collision
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] self.termination_reason: " + str(self.termination_reason))
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] CMOOOOOOOOOOOOOOON")
-                print("--------------------------------")
-                print("--------------------------------")
-                print("--------------------------------")
-                print("--------------------------------")
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] DEBUG INF")
+                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] DEBUG INF_0")
                 while 1:
                     continue
 
@@ -1609,7 +1677,7 @@ class iGibsonEnv(BaseEnv):
 
         elif self.episode_done and self.reached_goal:
 
-            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] GOOOOOOOOOAAAAAAAALLLLLLLLLLLLLLLLLL!!!")
+            ###print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] GOOOOOOOOOAAAAAAAALLLLLLLLLLLLLLLLLL!!!")
             self.step_reward = self.config_mobiman.reward_terminal_goal
             #self.goal_status.data = True
             #self.goal_status_pub.publish(self.goal_status)
@@ -1624,29 +1692,26 @@ class iGibsonEnv(BaseEnv):
             current_arm_distance2goal_3D = self.get_arm_distance2goal_3D()
 
             if self.model_mode == 0:
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] BASE MOTION")
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] current_base_distance2goal_2D: " + str(current_base_distance2goal_2D))
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] previous_base_distance2goal: " + str(self.previous_base_distance2goal))
+                ###print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] BASE MOTION")
+                ###print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] current_base_distance2goal_2D: " + str(current_base_distance2goal_2D))
+                ###print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] previous_base_distance2goal: " + str(self.previous_base_distance2goal))
                 reward_step_goal = self.get_reward_step_dist2goal(curr_dist2goal=current_base_distance2goal_2D, prev_dist2goal=self.previous_base_distance2goal)
 
             elif self.model_mode == 1 or self.model_mode == 2:
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] ARM OR WHOLE-BODY MOTION")
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] previous_arm_distance2goal_3D: " + str(self.previous_arm_distance2goal_3D))
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] current_arm_distance2goal_3D: " + str(current_arm_distance2goal_3D))               
+                ###print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] ARM OR WHOLE-BODY MOTION")
+                ###print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] previous_arm_distance2goal_3D: " + str(self.previous_arm_distance2goal_3D))
+                ###print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] current_arm_distance2goal_3D: " + str(current_arm_distance2goal_3D))               
                 reward_step_goal = self.get_reward_step_dist2goal(curr_dist2goal=current_arm_distance2goal_3D, prev_dist2goal=self.previous_arm_distance2goal_3D)
             
             else:
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] DEBUG_INF")
-                print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-                print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-                print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-                print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-                print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] DEBUG_INF_1")
+                while 1:
+                    continue
 
             weighted_reward_step_dist2goal = self.config_mobiman.alpha_step_dist2goal * reward_step_goal # type: ignore
 
-            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] reward_step_goal: " + str(reward_step_goal))
-            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] weighted_reward_step_dist2goal: " + str(weighted_reward_step_dist2goal))
+            ###print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] reward_step_goal: " + str(reward_step_goal))
+            ###print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] weighted_reward_step_dist2goal: " + str(weighted_reward_step_dist2goal))
 
             self.previous_base_distance2goal = current_base_distance2goal_2D
             self.previous_arm_distance2goal_3D = current_arm_distance2goal_3D
@@ -1660,12 +1725,9 @@ class iGibsonEnv(BaseEnv):
             elif self.model_mode == 2:
                 reward_step_mode = self.config_mobiman.reward_step_mode2
             else:
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] DEBUG_INF")
-                print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-                print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-                print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-                print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-                print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] DEBUG_INF_2")
+                while 1:
+                    continue
             weighted_reward_step_mode = self.config_mobiman.alpha_step_mode * reward_step_mode # type: ignore
 
             # Step Reward 3: mpc result
@@ -1683,32 +1745,24 @@ class iGibsonEnv(BaseEnv):
             # Total Step Reward
             self.step_reward = round(weighted_reward_step_dist2goal + weighted_reward_step_mode, 2)
 
-            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] step_reward: " + str(self.step_reward))
+            ###print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] step_reward: " + str(self.step_reward))
         
         self.episode_reward = round(self.episode_reward + self.step_reward, 2)
 
-        if self.episode_done and self.episode_num > 0:
+        if self.episode_done:
             #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] episode_num: " + str(self.episode_num))
-            #self.total_mean_episode_reward = round((self.total_mean_episode_reward * (self.episode_num - 1) + self.episode_reward) / self.episode_num, self.config_mobiman.mantissa_precision)
-            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] AND THE NEW total_mean_episode_reward!!!")
+
             self.total_mean_episode_reward = (self.total_mean_episode_reward * (self.episode_num - 1) + self.episode_reward) / self.episode_num
             self.total_mean_episode_reward = round(self.total_mean_episode_reward, 2)
-
-            self.episode_num = self.episode_num + 1
 
             #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] DEBUG INF")
             #while 1:
             #    continue
 
         self.save_oar_data()
-        self.data = pd.DataFrame(self.oars_data)
-        self.data.to_csv(self.oar_data_file)
-        del self.data
-        gc.collect()
 
         print("**********************")
         print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] done: " + str(done))
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] robot_id: {}".format(self.robot_id))
         print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] step_num: {}".format(self.step_num))
         print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] total_step_num: {}".format(self.total_step_num))
         print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] episode_num: {}".format(self.episode_num))
@@ -1726,36 +1780,30 @@ class iGibsonEnv(BaseEnv):
         print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] total_mean_episode_reward: {}".format(self.total_mean_episode_reward))
         print("**********************")
 
-        '''
-        # Save Observation-Action-Reward data into a file
-        self.save_oar_data()
-
-        if self.episode_done and (len(self.episode_oar_data['obs']) > 1):
-
-            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::save_oar_data] episode_oar_data obs len: " + str(len(self.episode_oar_data['obs'])))
-            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::save_oar_data] episode_oar_data acts len: " + str(len(self.episode_oar_data['acts'])))
-
-            if self.goal_status.data:
-                info_data = np.ones(len(self.episode_oar_data['acts']))
-            else:
-                info_data = np.zeros(len(self.episode_oar_data['acts']))
-
-            self.oar_data.append(TrajectoryWithRew( obs=np.array(self.episode_oar_data['obs']), 
-                                                    acts=np.array(self.episode_oar_data['acts']),
-                                                    infos=np.array(info_data),
-                                                    terminal=True,
-                                                    rews=np.array(self.episode_oar_data['rews']),))
-        '''
-
-        #if self.total_step_num == self.config_mobiman.training_timesteps:  
-            # Write Observation-Action-Reward data into a file
-            #self.write_oar_data()
-
-            ## Write training data
-            #write_data(self.config_mobiman.data_folder_path + "training_data.csv", self.training_data) # type: ignore
-
         self.step_num += 1
         self.total_step_num += 1
+
+        if self.episode_done:
+            self.episode_num += 1
+
+            if self.drl_mode == "testing":
+
+                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] TOTAL sample len: " + str(len(self.testing_samples)))
+                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] testing_idx: " + str(self.testing_idx))
+                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] testing_eval_idx: " + str(self.testing_eval_idx))
+                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] CURRENT sample: ")
+                #print(self.testing_samples[self.testing_idx])
+                
+                if self.testing_eval_idx >= self.config_mobiman.n_testing_eval_episodes: 
+                    self.testing_eval_idx = 1
+
+                    self.testing_idx += 1
+                    if self.testing_idx >= len(self.testing_samples):
+                        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] TESTING DONE !!!")
+                        self.flag_testing_done = True
+                        self.testing_idx -= 1
+                else:
+                    self.testing_eval_idx += 1
 
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] END")
         #print("--------------------------------------------------")
@@ -2003,8 +2051,6 @@ class iGibsonEnv(BaseEnv):
     '''
     def load_observation_space(self):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::load_observation_space] START")
-
-        self.episode_oar_data = dict(obs=[], acts=[], infos=None, terminal=[], rews=[])
 
         if self.config_mobiman.observation_space_type == "mobiman_FC":
 
@@ -2371,19 +2417,69 @@ class iGibsonEnv(BaseEnv):
         #while 1:
         #    continue
 
-        if self.init_flag:
-            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::reset_variables] BEFORE UPDATES")
-            self.previous_base_distance2goal = self.get_base_distance2goal_2D()
-            self.previous_arm_distance2goal_3D = self.get_arm_distance2goal_3D()
-
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::reset_variables] END")
+
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def initialize_testing_domain(self):
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_testing_domain] START")
+
+        ### NUA TODO: SET ALL PARAMETERS BELOW IN CONFIG!
+
+        ## Robot Pose
+        testing_range_robot_pos_x_min = -1.0
+        testing_range_robot_pos_x_max = 1.0
+        testing_range_robot_n_points_x = 2
+
+        testing_range_robot_pos_y_min = -1.0
+        testing_range_robot_pos_y_max = 1.0
+        testing_range_robot_n_points_y = 1
+
+        testing_range_robot_yaw_min = 0.0 # -0.5 * math.pi
+        testing_range_robot_yaw_max = 1.5 * math.pi # math.pi
+        testing_range_robot_n_yaw = 2
+
+        robot_pos_x_lin = np.linspace(testing_range_robot_pos_x_min, testing_range_robot_pos_x_max, testing_range_robot_n_points_x)
+        robot_pos_y_lin = np.linspace(testing_range_robot_pos_y_min, testing_range_robot_pos_y_max, testing_range_robot_n_points_y)
+        yaw_lin = np.linspace(testing_range_robot_yaw_min, testing_range_robot_yaw_max, testing_range_robot_n_yaw)
+
+        ## Objects
+        testing_range_box_pos_x_min = self.config_mobiman.goal_range_min_x
+        testing_range_box_pos_x_max = self.config_mobiman.goal_range_max_x
+        testing_range_box_n_points_x = 1
+
+        testing_range_box_pos_y_min = self.config_mobiman.goal_range_min_y
+        testing_range_box_pos_y_max = self.config_mobiman.goal_range_max_y
+        testing_range_box_n_points_y = 1
+
+        testing_range_box_pos_z_min = self.config_mobiman.goal_range_min_z
+        testing_range_box_pos_z_max = self.config_mobiman.goal_range_min_z
+        testing_range_box_n_points_z = 1
+
+        box_pos_x_lin = np.linspace(testing_range_box_pos_x_min, testing_range_box_pos_x_max, testing_range_box_n_points_x)
+        box_pos_y_lin = np.linspace(testing_range_box_pos_y_min, testing_range_box_pos_y_max, testing_range_box_n_points_y)
+        box_pos_z_lin = np.linspace(testing_range_box_pos_z_min, testing_range_box_pos_z_max, testing_range_box_n_points_z)
+
+        ### Testing Samples
+        ## Format: [robot_pos_x, robot_pos_y, robot_yaw, box_pos_x, box_pos_y, box_pos_z]
+        robot_pos_x_mesh, robot_pos_y_mesh, robot_pos_theta, box_pos_x_mesh, box_pos_y_mesh, box_pos_z_mesh = np.meshgrid(robot_pos_x_lin, robot_pos_y_lin, yaw_lin, 
+                                                                                                                          box_pos_x_lin, box_pos_y_lin, box_pos_z_lin)
+        
+        self.testing_samples = np.column_stack((robot_pos_x_mesh.flatten(), robot_pos_y_mesh.flatten(), robot_pos_theta.flatten(), 
+                                                box_pos_x_mesh.flatten(), box_pos_y_mesh.flatten(), box_pos_z_mesh.flatten()))
+        
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_robot_pose] testing_sample_robot_pose len: " + str(len(self.testing_samples)))
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_testing_domain] END")
 
     '''
     DESCRIPTION: TODO...Gets the initial location of the robot to reset
     '''
     def initialize_robot_pose(self):
-        robot0_init_yaw = 0.0
-        if self.config_mobiman.world_name == "conveyor":
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_robot_pose] END")
+
+        init_robot_yaw = 0.0
+        if self.drl_mode == "training" and self.config_mobiman.world_name == "conveyor":
 
             self.config_mobiman.init_robot_pos_range_x_min
 
@@ -2406,27 +2502,22 @@ class iGibsonEnv(BaseEnv):
             self.init_robot_pose["x"] = random.uniform(init_robot_pose_areas_x[area_idx][0], init_robot_pose_areas_x[area_idx][1])
             self.init_robot_pose["y"] = random.uniform(init_robot_pose_areas_y[area_idx][0], init_robot_pose_areas_y[area_idx][1])
             self.init_robot_pose["z"] = 0.15
-            robot0_init_yaw = random.uniform(0.0, 2*math.pi)
+            init_robot_yaw = random.uniform(0.0, 2*math.pi)
 
-        #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::initialize_robot_pose] x: " + str(self.init_robot_pose["x"]))
-        #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::initialize_robot_pose] y: " + str(self.init_robot_pose["y"]))
-        #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::initialize_robot_pose] z: " + str(self.init_robot_pose["z"]))
-        
-        '''
-        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] DEBUG_WARNING: MANUALLY SET ROBOT POSE! CHANGE IT BACK ASAP!!!")
-        if self.ros_node_id == 0:
-            self.init_robot_pose["x"] = 1.0
-            self.init_robot_pose["y"] = 0.0
-            self.init_robot_pose["z"] = 0.15
-            robot0_init_yaw = 0.0
-        else:
-            self.init_robot_pose["x"] = 1.0
-            self.init_robot_pose["y"] = 0.0
-            self.init_robot_pose["z"] = 0.15
-            robot0_init_yaw = 0.0
-        '''
+        elif self.drl_mode == "testing" and self.config_mobiman.world_name == "conveyor":
+            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_robot_pose] testing_idx: " + str(self.testing_idx))
 
-        robot0_init_quat = Quaternion.from_euler(0, 0, robot0_init_yaw)
+            self.init_robot_pose["x"] = self.testing_samples[self.testing_idx][0]
+            self.init_robot_pose["y"] = self.testing_samples[self.testing_idx][1]
+            self.init_robot_pose["z"] = 0.15
+
+            init_robot_yaw = self.testing_samples[self.testing_idx][2]
+
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_robot_pose] x: " + str(self.init_robot_pose["x"]))
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_robot_pose] y: " + str(self.init_robot_pose["y"]))
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_robot_pose] yaw: " + str(init_robot_yaw))
+
+        robot0_init_quat = Quaternion.from_euler(0, 0, init_robot_yaw)
         self.init_robot_pose["qx"] = robot0_init_quat.x
         self.init_robot_pose["qy"] = robot0_init_quat.y
         self.init_robot_pose["qz"] = robot0_init_quat.z
@@ -2441,8 +2532,8 @@ class iGibsonEnv(BaseEnv):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_robot_pose] init_joint_states:")
         #print(self.init_joint_states)
 
-        #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::initialize_robot_pose] Updated init_robot_pose x: " + str(self.init_robot_pose["x"]) + ", y: " + str(self.init_robot_pose["y"]))
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_robot_pose] Updated init_robot_pose x: " + str(self.init_robot_pose["x"]) + ", y: " + str(self.init_robot_pose["y"]))
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_robot_pose] END")
 
     '''
     DESCRIPTION: TODO...Randomize domain.
@@ -2514,7 +2605,7 @@ class iGibsonEnv(BaseEnv):
 
         self.cmd_base = self.cmd_base_init
         self.cmd_arm = self.cmd_arm_init
-        cmd = self.cmd_base + self.cmd_arm
+        #cmd = self.cmd_base + self.cmd_arm
 
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::reset] BEFORE apply_action")
         #self.robots[0].apply_action(cmd)
@@ -2530,6 +2621,11 @@ class iGibsonEnv(BaseEnv):
 
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::reset] Sleeping 2...")
         rospy.sleep(0.5)
+
+        if self.init_flag:
+            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::reset] BEFORE get_base_distance2goal_2D")
+            self.previous_base_distance2goal = self.get_base_distance2goal_2D()
+            self.previous_arm_distance2goal_3D = self.get_arm_distance2goal_3D()
 
         self.update_observation()
         state = self.obs
@@ -3038,7 +3134,7 @@ class iGibsonEnv(BaseEnv):
     DESCRIPTION: Get current observation of mobiman occupancy.
     '''
     def get_obs_mobiman_occupancy(self, check_flag=False):
-        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_obs_mobiman_occupancy] START")
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_obs_mobiman_occupancy] START")
 
         check_result = True
 
@@ -3095,7 +3191,7 @@ class iGibsonEnv(BaseEnv):
         #mobiman_occupancy_obs_msg = self.mobiman_occupancy_obs_msg
         #obs_mobiman_occupancy = np.array(mobiman_occupancy_obs_msg.obs).reshape(self.config_mobiman.fc_obs_shape)
         
-        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_obs_mobiman_occupancy] END")
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_obs_mobiman_occupancy] END")
 
         return obs_mobiman_occupancy, check_result
 
@@ -3168,7 +3264,7 @@ class iGibsonEnv(BaseEnv):
         reward_step_dist2goal = self.config_mobiman.reward_step_dist2goal_scale * diff_dist2goal
         if curr_dist2goal < self.config_mobiman.reward_step_dist2goal_dist_threshold:
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_dist2goal] Bro it's so close, but be careful!")
-            reward_step_dist2goal += self.config_mobiman.reward_step_dist2goal_scale
+            reward_step_dist2goal += (0.4 * self.config_mobiman.reward_step_dist2goal_scale)
         reward_step_dist2goal = round(reward_step_dist2goal, 2)
         return reward_step_dist2goal
 
@@ -3358,54 +3454,42 @@ class iGibsonEnv(BaseEnv):
     DESCRIPTION: TODO...
     '''
     def save_oar_data(self):
-        if  self.config_mobiman.observation_space_type == "laser_FC" or \
-            self.config_mobiman.observation_space_type == "Tentabot_FC" or \
-            self.config_mobiman.observation_space_type == "mobiman_FC":
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::save_oar_data] START")
+
+        obs_data = self.obs.reshape((-1)) # type: ignore
+
+        # Save Observation-Action-Reward Data
+        self.oars_data['episode_index'].append(self.episode_num)
+        self.oars_data['step_index'].append(self.step_num)
+        self.oars_data['observation'].append(obs_data.tolist())
+        self.oars_data['action'].append(self.step_action)
+        self.oars_data['reward'].append(self.step_reward)
+        self.oars_data['result'].append(self.termination_reason)
         
-            #print("----------------------------------")
-            #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::save_oar_data] self.obs shape: " + str(self.obs.shape))
-            #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::save_oar_data] self.previous_action shape: " + str(self.previous_action.shape))
-            #print("")
+        if self.drl_mode == "testing":
+            self.oars_data['testing_index'].append(self.testing_idx)
+            self.oars_data['testing_state'].append(self.testing_samples[self.testing_idx])
+            self.oars_data['testing_eval_index'].append(self.testing_eval_idx)
 
-            obs_data = self.obs.reshape((-1)) # type: ignore
-            
-            
-            #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::save_oar_data] obs_data shape: " + str(obs_data.shape))
-            #print("----------------------------------")
+        if  self.episode_done:
+            self.oars_data['episode_index'].append(None)
+            self.oars_data['step_index'].append(None)
+            self.oars_data['observation'].append([])
+            self.oars_data['action'].append([])
+            self.oars_data['reward'].append(None)
+            self.oars_data['result'].append([])
 
-            # Save Observation-Action-Reward Data
-            self.episode_oar_data['obs'].append(obs_data) # type: ignore
-            self.oars_data['Index'].append(self.idx)
-            self.oars_data['Observation'].append(obs_data.tolist())
-            self.oars_data['Action'].append(self.step_action)
-            self.oars_data['Reward'].append(self.step_reward)
-            
-            if not self.episode_done:
-                self.episode_oar_data['acts'].append(self.action_space) # type: ignore
-                #self.episode_oar_data['infos'].append()
-                #self.episode_oar_data['terminal'].append(self.episode_done)
-                self.episode_oar_data['rews'].append(self.step_reward) # type: ignore
-                ############ CSV #################
-            else:
-                # self.episode_oar_data['obs'].append(obs_data) # type: ignore
-                self.oars_data['Index'].append(None)
-                self.oars_data['Observation'].append([])
-                self.oars_data['Action'].append([])
-                self.oars_data['Reward'].append([])
-                self.idx = 0
-            self.idx += 1
+            if self.drl_mode == "testing":
+                self.oars_data['testing_index'].append(None)
+                self.oars_data['testing_state'].append([])
+                self.oars_data['testing_eval_index'].append(None)
 
-            '''
-            print("----------------------------------")
-            print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::save_oar_data] episode_oar_data obs type: " + str(type(self.episode_oar_data['obs'])))
-            print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::save_oar_data] episode_oar_data obs len: " + str(len(self.episode_oar_data['obs'])))
-            print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::save_oar_data] episode_oar_data acts len: " + str(len(self.episode_oar_data['acts'])))
-            print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::save_oar_data] episode_oar_data: " + str(self.episode_oar_data))
-            #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::save_oar_data] episode_oar_data obs: " + str(self.episode_oar_data.obs))
-            print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::save_oar_data] episode_oar_data obs shape: " + str(self.episode_oar_data.obs.shape))
-            #print("[jackal_jaco_mobiman_drl::JackalJacoMobimanDRL::save_oar_data] oar_data: " + str(self.oar_data))
-            print("----------------------------------")
-            '''
+        self.data = pd.DataFrame(self.oars_data)
+        self.data.to_csv(self.oar_data_file)
+        del self.data
+        gc.collect()
+        
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::save_oar_data] END")
 
     '''
     DESCRIPTION: TODO...Save a sequence of Trajectories.
