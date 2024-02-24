@@ -210,6 +210,7 @@ def main(selection="user", headless=False, short_exec=False):
     mobiman_path = rospack.get_path('mobiman_simulation') + "/"
 
     ## Initialize the parameters
+    flag_print_info = rospy.get_param('flag_print_info', False)
     training_log_name = rospy.get_param('training_log_name', "")
     igibson_config_file = rospy.get_param('igibson_config_file', "")
     flag_drl = rospy.get_param('flag_drl', True)
@@ -233,6 +234,7 @@ def main(selection="user", headless=False, short_exec=False):
     plot_moving_average_window_size_timesteps = rospy.get_param('plot_moving_average_window_size_timesteps', 0)
     plot_moving_average_window_size_episodes = rospy.get_param('plot_moving_average_window_size_episodes', 0)
 
+    print("[drl_training_sb3_mobiman_jackalJaco::main] flag_print_info: " + str(flag_print_info))
     print("[drl_training_sb3_mobiman_jackalJaco::main] training_log_name: " + str(training_log_name))
     print("[drl_training_sb3_mobiman_jackalJaco::main] igibson_config_file: " + str(igibson_config_file))
     print("[drl_training_sb3_mobiman_jackalJaco::main] flag_drl: " + str(flag_drl))
@@ -271,7 +273,6 @@ def main(selection="user", headless=False, short_exec=False):
     ## Keep all parameters in an array to save
     training_log_data = []
     training_log_data.append(["igibson_config_file", igibson_config_file])
-    #training_log_data.append(["mode", mode])
     training_log_data.append(["rl_algorithm", rl_algorithm])
     training_log_data.append(["motion_planning_algorithm", motion_planning_algorithm])
     training_log_data.append(["observation_space_type", observation_space_type])
@@ -330,6 +331,7 @@ def main(selection="user", headless=False, short_exec=False):
     #    continue
 
     # Create environments
+    print("[drl_training_sb3_mobiman_jackalJaco::main] BEFORE make_env")
     def make_env(rank: int, seed: int = 0) -> Callable:
         def _init() -> iGibsonEnv:
             env = iGibsonEnv(
@@ -344,13 +346,15 @@ def main(selection="user", headless=False, short_exec=False):
                 automatic_reset=True,
                 data_folder_path=data_folder_path,
                 objects=objects,
-                flag_drl=flag_drl             
+                flag_drl=flag_drl,
+                flag_print_info=flag_print_info           
             )
-            env.seed(seed + rank) # type: ignore
+            env.reset(seed + rank) # type: ignore
             return env
 
         set_random_seed(seed)
         return _init
+    print("[drl_training_sb3_mobiman_jackalJaco::main] AFTER make_env")
 
     # Set multi-process
     env = SubprocVecEnv([make_env(i) for i in range(num_environments)])

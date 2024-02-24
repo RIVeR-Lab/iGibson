@@ -1,8 +1,8 @@
 import logging
 import os
 
-import gym
-#import gymnasium as gym
+#import gym
+import gymnasium as gym
 
 import igibson
 from igibson.object_states import AABB
@@ -51,7 +51,7 @@ class BaseEnv(gym.Env):
         :param use_pb_gui: concurrently display the interactive pybullet gui (for debugging)
         """
 
-        print("[env_base::__init__] START")
+        #print("[env_base::__init__] START")
 
         self.config = parse_config(config_file)
         if scene_id is not None:
@@ -110,7 +110,7 @@ class BaseEnv(gym.Env):
                 use_pb_gui=use_pb_gui,
             )
         else:
-            print("[env_base::__init__] START Simulator")
+            #print("[env_base::__init__] START Simulator")
             self.simulator = Simulator(
                 mode=mode,
                 physics_timestep=physics_timestep,
@@ -124,10 +124,10 @@ class BaseEnv(gym.Env):
             )
             #print("[env_base__init__] END Simulator")
         
-        print("[env_base::__init__] START load")
+        #print("[env_base::__init__] BEFORE load")
         self.load()
-        print("[env_base::__init__] END load")
-        print("[env_base::__init__] END")
+        #print("[env_base::__init__] AFTER load")
+        #print("[env_base::__init__] END")
 
 
     def reload(self, config_file):
@@ -328,8 +328,20 @@ class BaseEnv(gym.Env):
         """
         return NotImplementedError()
 
-    #def reset(self, *, seed=None, options=None):
-    def reset(self):
+    #def reset(self):
+    def reset(self, *, seed=None, options=None):
+        """
+        Overwritten by subclasses.
+        """
+        return NotImplementedError()
+    
+    def render(self):
+        """
+        Overwritten by subclasses.
+        """
+        return NotImplementedError()
+
+    def close(self):
         """
         Overwritten by subclasses.
         """
