@@ -121,6 +121,7 @@ class iGibsonEnv(BaseEnv):
         init_ros_node=False,
         ros_node_id=0,
         data_folder_path="",
+        log_file="",
         objects=None,
         flag_drl=False,
         flag_print_info=False
@@ -143,9 +144,9 @@ class iGibsonEnv(BaseEnv):
         self.ns = "/" + robot_ns + "_" + str(ros_node_id) + "/"
 
         if self.ros_node_id == 0:
-            self.config_mobiman = Config(data_folder_path=data_folder_path, drl_mode=drl_mode, flag_print_info=flag_print_info) # type: ignore
+            self.config_mobiman = Config(log_file=log_file, drl_mode=drl_mode, flag_print_info=flag_print_info) # type: ignore
         else:
-            self.config_mobiman = Config(data_folder_path="") # type: ignore
+            self.config_mobiman = Config() # type: ignore
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] END CONFIG")
 
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] START")
@@ -197,7 +198,7 @@ class iGibsonEnv(BaseEnv):
 
         # Variables for saving OARS data
         self.data = None
-        self.oars_data = {'episode_index':[], 'step_index':[], 'observation':[], 'action':[], 'reward':[], 'result':[]}
+        self.oars_data = {'log_file':str, 'episode_index':[], 'step_index':[], 'observation':[], 'action':[], 'reward':[], 'result':[]}
         if self.drl_mode == "testing":
             self.oars_data['testing_index'] = []
             self.oars_data['testing_state'] = []
@@ -3424,6 +3425,10 @@ class iGibsonEnv(BaseEnv):
         obs_data = self.obs.reshape((-1)) # type: ignore
 
         # Save Observation-Action-Reward Data
+        if self.episode_num == 1:
+            self.oars_data['log_file'].append(self.config_mobiman.log_file)
+        else:
+            self.oars_data['log_file'].append("")
         self.oars_data['episode_index'].append(self.episode_num)
         self.oars_data['step_index'].append(self.step_num)
         self.oars_data['observation'].append(obs_data.tolist())
@@ -3437,6 +3442,7 @@ class iGibsonEnv(BaseEnv):
             self.oars_data['testing_eval_index'].append(self.testing_eval_idx)
 
         if  self.episode_done:
+            self.oars_data['log_file'].append("")
             self.oars_data['episode_index'].append(None)
             self.oars_data['step_index'].append(None)
             self.oars_data['observation'].append([])

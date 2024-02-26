@@ -427,17 +427,17 @@ def main(selection="user", headless=False, short_exec=False):
             initial_trained_model = initial_trained_model_path
             
             if rl_algorithm == "SAC":
-                model = SAC.load(initial_trained_model, env=None, tensorboard_log=tensorboard_log_path) # type: ignore
+                model = SAC.load(initial_trained_model, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
             
             elif rl_algorithm == "DDPG":
-                model = DDPG.load(initial_trained_model, env=None, tensorboard_log=tensorboard_log_path) # type: ignore
+                model = DDPG.load(initial_trained_model, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
             
             elif rl_algorithm == "A2C":
-                model = A2C.load(initial_trained_model, env=None, tensorboard_log=tensorboard_log_path) # type: ignore
+                model = A2C.load(initial_trained_model, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
             
             else:
-                model = PPO.load(initial_trained_model, env=None, tensorboard_log=tensorboard_log_path) # type: ignore
-            model.set_env(env)
+                model = PPO.load(initial_trained_model, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+            #model.set_env(env)
 
             training_log_path = mobiman_path + data_path + initial_training_path + training_log_name + ".csv"
             total_training_timesteps = int(get_param_value_from_training_log(training_log_path, "total_training_timesteps")) + training_timesteps # type: ignore

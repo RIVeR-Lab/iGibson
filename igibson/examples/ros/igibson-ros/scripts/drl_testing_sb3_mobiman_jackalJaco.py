@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 '''
-LAST UPDATE: 2024.02.21
+LAST UPDATE: 2024.02.26
 
 AUTHOR: Neset Unver Akmandor (NUA)
 
@@ -418,6 +418,7 @@ def main(selection="user", headless=False, short_exec=False):
         use_pb_gui=use_pb_gui,
         automatic_reset=True,
         data_folder_path=data_folder_path,
+        log_file=testing_log_file,
         objects=objects,
         flag_drl=True)
     print("[drl_testing_sb3_mobiman_jackalJaco::main] AFTER iGibsonEnv")
