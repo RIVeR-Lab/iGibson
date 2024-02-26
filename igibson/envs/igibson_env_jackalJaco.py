@@ -3425,7 +3425,7 @@ class iGibsonEnv(BaseEnv):
         obs_data = self.obs.reshape((-1)) # type: ignore
 
         # Save Observation-Action-Reward Data
-        if self.episode_num == 1:
+        if self.episode_num == 1 and self.step_num == 1:
             self.oars_data['log_file'].append(self.config_mobiman.log_file)
         else:
             self.oars_data['log_file'].append("")

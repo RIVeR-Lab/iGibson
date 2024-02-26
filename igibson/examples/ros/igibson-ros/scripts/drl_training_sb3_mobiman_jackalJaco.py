@@ -345,6 +345,7 @@ def main(selection="user", headless=False, short_exec=False):
                 use_pb_gui=use_pb_gui,
                 automatic_reset=True,
                 data_folder_path=data_folder_path,
+                log_file=training_log_file,
                 objects=objects,
                 flag_drl=flag_drl,
                 flag_print_info=flag_print_info           
