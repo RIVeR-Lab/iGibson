@@ -198,7 +198,7 @@ class iGibsonEnv(BaseEnv):
 
         # Variables for saving OARS data
         self.data = None
-        self.oars_data = {'log_file':str, 'episode_index':[], 'step_index':[], 'observation':[], 'action':[], 'reward':[], 'result':[]}
+        self.oars_data = {'log_file':[], 'episode_index':[], 'step_index':[], 'observation':[], 'action':[], 'reward':[], 'result':[]}
         if self.drl_mode == "testing":
             self.oars_data['testing_index'] = []
             self.oars_data['testing_state'] = []
@@ -3441,6 +3441,8 @@ class iGibsonEnv(BaseEnv):
             self.oars_data['testing_state'].append(self.testing_samples[self.testing_idx])
             self.oars_data['testing_eval_index'].append(self.testing_eval_idx)
 
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::save_oar_data] testing result: " + str(self.termination_reason))
+
         if  self.episode_done:
             self.oars_data['log_file'].append("")
             self.oars_data['episode_index'].append(None)
@@ -3459,7 +3461,7 @@ class iGibsonEnv(BaseEnv):
         self.data.to_csv(self.oar_data_file)
         del self.data
         gc.collect()
-        
+
         if self.flag_print_info:
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::save_oar_data] END")
 
