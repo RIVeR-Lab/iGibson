@@ -390,10 +390,27 @@ def main(selection="user", headless=False, short_exec=False):
                 verbose=1)
         
         elif rl_algorithm == "DDPG":
-            print("[drl_training_sb3_mobiman_jackalJaco::__main__] NUA TODO: DDPG IS NOT IMPLEMENTED YET!")
-            print("[drl_training_sb3_mobiman_jackalJaco::__main__] DEBUG_INF")
-            while 1:
-                continue
+            #print("[drl_training_sb3_mobiman_jackalJaco::__main__] NUA TODO: DDPG IS NOT IMPLEMENTED YET!")
+            #print("[drl_training_sb3_mobiman_jackalJaco::__main__] DEBUG_INF")
+            #while 1:
+            #    continue
+
+            print("[drl_training_sb3_mobiman_jackalJaco::__main__] DDPG IS IN CHARGE!")
+            policy_kwargs = dict(net_arch=dict(pi=[400, 300], qf=[400, 300]), 
+                                 activation_fn=th.nn.ReLU)
+            
+            model = DDPG(
+                "MlpPolicy", 
+                env, 
+                learning_rate=learning_rate, # type: ignore
+                learning_starts=100,
+                batch_size=batch_size, # type: ignore
+                train_freq=10,
+                #ent_coef='auto', # type: ignore
+                tensorboard_log=tensorboard_log_path, 
+                policy_kwargs=policy_kwargs, 
+                device="cuda", 
+                verbose=1)
 
         elif rl_algorithm == "A2C":
             print("[drl_training_sb3_mobiman_jackalJaco::__main__] A2C IS NOT IMPLEMENTED YET!")
