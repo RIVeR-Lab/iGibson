@@ -380,9 +380,10 @@ def main(selection="user", headless=False, short_exec=False):
                 "MlpPolicy", 
                 env, 
                 learning_rate=learning_rate, # type: ignore
-                learning_starts=100,
+                learning_starts=500,
+                buffer_size=5000,
                 batch_size=batch_size, # type: ignore
-                train_freq=10,
+                train_freq=4,
                 ent_coef='auto', # type: ignore
                 tensorboard_log=tensorboard_log_path, 
                 policy_kwargs=policy_kwargs, 
@@ -403,7 +404,7 @@ def main(selection="user", headless=False, short_exec=False):
                 "MlpPolicy", 
                 env, 
                 learning_rate=learning_rate, # type: ignore
-                learning_starts=100,
+                learning_starts=500,
                 batch_size=batch_size, # type: ignore
                 train_freq=10,
                 #ent_coef='auto', # type: ignore
