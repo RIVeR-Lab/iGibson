@@ -3229,7 +3229,7 @@ class iGibsonEnv(BaseEnv):
         if curr_dist2goal < self.config_mobiman.reward_step_dist2goal_dist_threshold:
             if self.flag_print_info:
                 print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_dist2goal] Bro it's so close, but be careful!")
-            reward_step_dist2goal += (0.4 * self.config_mobiman.reward_step_dist2goal_scale)
+            reward_step_dist2goal += (0.5 * self.config_mobiman.reward_step_dist2goal_scale)
         reward_step_dist2goal = round(reward_step_dist2goal, 2)
         return reward_step_dist2goal
 
