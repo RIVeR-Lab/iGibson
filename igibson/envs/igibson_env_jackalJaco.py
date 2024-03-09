@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 '''
-LAST UPDATE: 2024.02.23
+LAST UPDATE: 2024.03.09
 
 AUTHOR: Neset Unver Akmandor (NUA)
         Sarvesh Prajapati (SP)
@@ -1561,8 +1561,10 @@ class iGibsonEnv(BaseEnv):
         #action[6] = 0.0
         #action[7] = 0.0
 
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] drl_mode: " + str(self.drl_mode))
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] testing_benchmark_name: " + str(self.config_mobiman.testing_benchmark_name))
+
         if self.drl_mode == "testing" and self.config_mobiman.testing_benchmark_name == "ocs2wb":
-            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] testing_benchmark_name: " + str(self.config_mobiman.testing_benchmark_name))
             action[0] = 1.0     # Model mode: Whole-body
             action[1] = 1.0     # Target mode: Goal
 

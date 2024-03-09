@@ -81,12 +81,14 @@ def read_data(file):
 '''
 DESCRIPTION: TODO...
 '''
-def write_data(file, data):
-    file_status = open(file, 'a')
+def write_data(filepath, filename, data):
+    if not os.path.exists(filepath):
+        os.makedirs(filepath)
+    file_status = open(filepath + filename, 'a')
     with file_status:
         write = csv.writer(file_status)
         write.writerows(data)
-        print("[drl_testing_sb3_mobiman_jackalJaco::write_data] Data is written in " + str(file))
+        print("[drl_testing_sb3_mobiman_jackalJaco::write_data] Data is written in " + str(filepath+filename))
 
 '''
 DESCRIPTION: TODO...
@@ -347,15 +349,16 @@ def main(selection="user", headless=False, short_exec=False):
     data_folder_path = mobiman_path + data_path
     if initial_training_path:
         data_folder_path += initial_training_path
-    else:
-        data_folder_path += "benchmark/"
+    #else:
+    #    data_folder_path += "benchmark/"
 
     print("[drl_testing_sb3_mobiman_jackalJaco::main] data_folder_path: " + str(data_folder_path))
 
     #os.makedirs(data_folder_path, exist_ok=True)
 
     #new_trained_model_file = data_folder_path + "trained_model"
-    testing_log_file = data_folder_path + "testing_log_" + testing_benchmark_name + ".csv"
+    testing_log_file_name = "testing_log_" + testing_benchmark_name + ".csv"
+    testing_log_file = data_folder_path + testing_log_file_name
     tensorboard_log_path = data_folder_path + rl_algorithm + "_testing_tensorboard/"
 
     ## Keep all parameters in an array to save
@@ -371,7 +374,7 @@ def main(selection="user", headless=False, short_exec=False):
     #testing_log_data.append(["plot_moving_average_window_size_episodes", plot_moving_average_window_size_episodes])
 
     ## Write all parameters into the log file of the training
-    write_data(testing_log_file, testing_log_data)
+    write_data(data_folder_path, testing_log_file_name, testing_log_data)
 
     #print("[drl_testing_sb3_mobiman_jackalJaco::main] DEBUG_INF")
     #while 1:
@@ -482,7 +485,7 @@ def main(selection="user", headless=False, short_exec=False):
     ## Write all results into the log file of the training
     testing_log_data = []
     testing_log_data.append(["testing_time[min]", testing_time])    
-    write_data(testing_log_file, testing_log_data)
+    write_data(data_folder_path, testing_log_file_name, testing_log_data)
 
     print("[drl_testing_sb3_mobiman_jackalJaco::main] End of testing!")
     print("[drl_testing_sb3_mobiman_jackalJaco::main] testing_time[min]: " + str(testing_time))
