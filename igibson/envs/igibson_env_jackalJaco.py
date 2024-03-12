@@ -870,9 +870,9 @@ class iGibsonEnv(BaseEnv):
             if self.config_mobiman.action_type == 0:
                 print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] DISCRETE ACTION")
                 
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] DEBUG_INF")
-                while 1:
-                    continue
+                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] DEBUG_INF")
+                #while 1:
+                #    continue
                 
                 set_action_drl_service_name = self.ns + 'set_discrete_action_drl_mrt'
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] set_action_drl_service_name: " + str(set_action_drl_service_name))
@@ -880,7 +880,7 @@ class iGibsonEnv(BaseEnv):
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] Received service set_action_drl!")
 
                 srv_set_discrete_action_drl = rospy.ServiceProxy(set_action_drl_service_name, setDiscreteActionDRL)  
-                success = srv_set_discrete_action_drl(action, self.config_mobiman.action_time_horizon).success
+                success = srv_set_discrete_action_drl(self.total_step_num, action, self.config_mobiman.action_time_horizon).success
             else:
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] CONTINUOUS ACTION")
                 set_action_drl_service_name = self.ns + 'set_continuous_action_drl_mrt'
@@ -1572,8 +1572,15 @@ class iGibsonEnv(BaseEnv):
         self.current_step += 1
 
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] total_step_num: " + str(self.total_step_num))
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] action: " + str(action))
-        
+
+        '''
+        if action[1] <= 0.5:
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] TARGET:")
+        else:
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] GOAL:")
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] target: " + str(action[3:]))
+        '''
+
         if self.flag_print_info:
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] Waiting for mrt_ready...")
         while not self.mrt_ready_flag:
@@ -2123,10 +2130,11 @@ class iGibsonEnv(BaseEnv):
 
         if self.config_mobiman.action_type == 0:
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::load_action_space] DISCRETE!")
-            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::load_action_space] NEEDS REVIEW: DEBUG_INF")
-            while 1:
-                continue
+            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::load_action_space] NEEDS REVIEW: DEBUG_INF")
+            #while 1:
+            #    continue
             
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::load_action_space] n_action: " + str(self.config_mobiman.n_action))
             self.action_space = gym.spaces.Discrete(self.config_mobiman.n_action)
             self.config_mobiman.set_action_shape("Discrete, " + str(self.action_space.n)) # type: ignore
 
@@ -3231,7 +3239,7 @@ class iGibsonEnv(BaseEnv):
         if curr_dist2goal < self.config_mobiman.reward_step_dist2goal_dist_threshold:
             if self.flag_print_info:
                 print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_dist2goal] Bro it's so close, but be careful!")
-            reward_step_dist2goal += (0.5 * self.config_mobiman.reward_step_dist2goal_scale)
+            reward_step_dist2goal += (self.config_mobiman.reward_step_dist2goal_dist_scale * self.config_mobiman.reward_step_dist2goal_scale)
         reward_step_dist2goal = round(reward_step_dist2goal, 2)
         return reward_step_dist2goal
 
