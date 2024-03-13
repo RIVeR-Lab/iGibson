@@ -827,8 +827,8 @@ class iGibsonEnv(BaseEnv):
                   
             cmd = self.cmd_base + self.cmd_arm
             #cmd = self.cmd_base_init + self.cmd_arm_init
-            self.robots[0].apply_action(cmd)
-            self.simulator_step()
+            #self.robots[0].apply_action(cmd)
+            #self.simulator_step()
             self.cmd_seq_prev = self.cmd_seq
     
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_sim] END")
@@ -1551,7 +1551,8 @@ class iGibsonEnv(BaseEnv):
     def take_action(self, action):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] START")
         
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] DEBUG_WARNING: MANUALLY SET MODEL MODE! CHANGE IT BACK ASAP!!!")
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] DEBUG_WARNING: MANUALLY SET MODEL MODE! CHANGE IT BACK ASAP!!!")
+        action = 0
         #action[0] = 1.0
         #action[1] = 1.0
         #action[2] = 0.0
@@ -1564,7 +1565,7 @@ class iGibsonEnv(BaseEnv):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] drl_mode: " + str(self.drl_mode))
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] testing_benchmark_name: " + str(self.config_mobiman.testing_benchmark_name))
 
-        if self.drl_mode == "testing" and self.config_mobiman.testing_benchmark_name == "ocs2wb":
+        if self.config_mobiman.action_type == 1 and self.drl_mode == "testing" and self.config_mobiman.testing_benchmark_name == "ocs2wb":
             action[0] = 1.0     # Model mode: Whole-body
             action[1] = 1.0     # Target mode: Goal
 
