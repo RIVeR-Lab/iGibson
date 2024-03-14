@@ -868,7 +868,7 @@ class iGibsonEnv(BaseEnv):
         
         try:
             if self.config_mobiman.action_type == 0:
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] DISCRETE ACTION")
+                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] DISCRETE ACTION")
                 
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::client_set_action_drl] DEBUG_INF")
                 #while 1:
@@ -1551,7 +1551,7 @@ class iGibsonEnv(BaseEnv):
     def take_action(self, action):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] START")
         
-        #action = 36
+        #action = 15
         #action[0] = 0.0
         #action[1] = 0.0
         #action[2] = -1.0
@@ -2135,8 +2135,8 @@ class iGibsonEnv(BaseEnv):
             #while 1:
             #    continue
             
-            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::load_action_space] n_action: " + str(self.config_mobiman.n_action))
-            self.action_space = gym.spaces.Discrete(self.config_mobiman.n_action)
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::load_action_space] n_discrete_action: " + str(self.config_mobiman.n_discrete_action))
+            self.action_space = gym.spaces.Discrete(self.config_mobiman.n_discrete_action)
             self.config_mobiman.set_action_shape("Discrete, " + str(self.action_space.n)) # type: ignore
 
         else:
