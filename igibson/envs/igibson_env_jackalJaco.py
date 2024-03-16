@@ -3391,12 +3391,14 @@ class iGibsonEnv(BaseEnv):
         pR0 = {"x": self.previous_base_wrt_world_2D[0], "y": self.previous_base_wrt_world_2D[1]}
         pR1 = {"x": self.current_base_wrt_world_2D[0], "y": self.current_base_wrt_world_2D[1]}
         
+        '''
         p = Point()
         p.x = desired_robot_wrt_world_2D[0]
         p.y = desired_robot_wrt_world_2D[1]
         p.z = 0.0
         debug_point_data = [p]
         self.publish_debug_visu(debug_point_data, frame_name="world")
+        '''
 
         d0 = self.get_euclidean_distance_2D(pT, pR0)
         d1 = self.get_euclidean_distance_2D(pT, pR1)
@@ -3404,7 +3406,10 @@ class iGibsonEnv(BaseEnv):
         if (d1 > d0):
             diff_pos_normalized = 1
         else:
-            diff_pos_normalized = d1 / d0
+            if d0 > 0:
+                diff_pos_normalized = d1 / d0
+            else:
+                diff_pos_normalized = 1
         
         #diff_yaw_normalized = self.get_angle_difference(desired_robot_wrt_world_2D[-1], self.current_base_wrt_world_2D[-1], True)
         #diff_target = 0.5 * (diff_pos_normalized + diff_yaw_normalized)
@@ -3442,21 +3447,25 @@ class iGibsonEnv(BaseEnv):
     DESCRIPTION: TODO...
     '''
     def get_reward_step_com(self):
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_target] START")
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_com] START")
 
-        reward_step_com_val = self.mpc_action_result_com_error_norm_total / self.mpc_action_result_total_timestep
+        if self.mpc_action_result_total_timestep > 0:
+            reward_step_com_val = self.mpc_action_result_com_error_norm_total / self.mpc_action_result_total_timestep
 
-        reward_step_com = self.config_mobiman.reward_step_target_com_scale
-        if reward_step_com_val > self.config_mobiman.reward_step_target_com_threshold:
-            reward_step_com *= -1
-        
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_target] mpc_action_result_total_timestep: " + str(self.mpc_action_result_total_timestep))
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_target] mpc_action_result_com_error_norm_total: " + str(self.mpc_action_result_com_error_norm_total))
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_target] reward_step_target_com_threshold: " + str(self.config_mobiman.reward_step_target_com_threshold))
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_target] reward_step_com_val: " + str(reward_step_com_val))
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_target] reward_step_com: " + str(reward_step_com))
+            reward_step_com = self.config_mobiman.reward_step_target_com_scale
+            if reward_step_com_val > self.config_mobiman.reward_step_target_com_threshold:
+                reward_step_com *= -1
+        else:
+            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_com] NO mpc_action_result_total_timestep !!!")
+            reward_step_com_val = 0.0
 
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_target] END")
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_com] mpc_action_result_total_timestep: " + str(self.mpc_action_result_total_timestep))
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_com] mpc_action_result_com_error_norm_total: " + str(self.mpc_action_result_com_error_norm_total))
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_com] reward_step_target_com_threshold: " + str(self.config_mobiman.reward_step_target_com_threshold))
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_com] reward_step_com_val: " + str(reward_step_com_val))
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_com] reward_step_com: " + str(reward_step_com))
+
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_com] END")
 
         return reward_step_com
 
