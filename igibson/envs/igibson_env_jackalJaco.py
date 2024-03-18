@@ -1823,7 +1823,7 @@ class iGibsonEnv(BaseEnv):
 
             # Step Reward 3: target
             reward_step_target = 0.0
-            if self.flag_action_target:
+            if self.config_mobiman.ablation_mode != 1 and self.flag_action_target:
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] TARGET REWARD IS COMING...")
                 
                 if self.termination_reason == 'target' and self.model_mode != 1:
@@ -2452,36 +2452,64 @@ class iGibsonEnv(BaseEnv):
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_testing_domain] START")
 
         ### NUA TODO: SET ALL PARAMETERS BELOW IN CONFIG!
+        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_testing_domain] testing_mode: " + str(self.config_mobiman.testing_mode))
+        if self.config_mobiman.testing_mode == 0:
+            
+            ## Parameters for robot pose
+            testing_range_robot_pos_x_min = -1.5
+            testing_range_robot_pos_x_max = 1.5
+            testing_range_robot_n_points_x = 3
 
-        ## Robot Pose
-        testing_range_robot_pos_x_min = -1.5
-        testing_range_robot_pos_x_max = 1.5
-        testing_range_robot_n_points_x = 3
+            testing_range_robot_pos_y_min = -1.5
+            testing_range_robot_pos_y_max = 1.0
+            testing_range_robot_n_points_y = 3
 
-        testing_range_robot_pos_y_min = -1.5
-        testing_range_robot_pos_y_max = 1.0
-        testing_range_robot_n_points_y = 3
+            testing_range_robot_yaw_min = 0.0 # -0.5 * math.pi
+            testing_range_robot_yaw_max = 1.5 * math.pi # math.pi
+            testing_range_robot_n_yaw = 4
 
-        testing_range_robot_yaw_min = 0.0 # -0.5 * math.pi
-        testing_range_robot_yaw_max = 1.5 * math.pi # math.pi
-        testing_range_robot_n_yaw = 4
+            ## Parameters for object pose
+            testing_range_box_n_points_x = 3
+            testing_range_box_n_points_y = 1
+            testing_range_box_n_points_z = 1
 
+        elif self.config_mobiman.testing_mode == 1:
+            
+            ## Parameters for robot pose
+            testing_range_robot_pos_x_min = -1.5
+            testing_range_robot_pos_x_max = 1.5
+            testing_range_robot_n_points_x = 3
+
+            testing_range_robot_pos_y_min = -1.5
+            testing_range_robot_pos_y_max = -1.5
+            testing_range_robot_n_points_y = 1
+
+            testing_range_robot_yaw_min = 0.0 # -0.5 * math.pi
+            testing_range_robot_yaw_max = math.pi # math.pi
+            testing_range_robot_n_yaw = 2
+
+            ## Parameters for object pose
+            testing_range_box_n_points_x = 3
+            testing_range_box_n_points_y = 1
+            testing_range_box_n_points_z = 1
+        
+        else:
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_testing_domain] ERROR :Invalid testing_mode: " + str(self.config_mobiman.testing_mode) + str("!"))
+
+        ## Initialize robot pose configurations
         robot_pos_x_lin = np.linspace(testing_range_robot_pos_x_min, testing_range_robot_pos_x_max, testing_range_robot_n_points_x)
         robot_pos_y_lin = np.linspace(testing_range_robot_pos_y_min, testing_range_robot_pos_y_max, testing_range_robot_n_points_y)
         yaw_lin = np.linspace(testing_range_robot_yaw_min, testing_range_robot_yaw_max, testing_range_robot_n_yaw)
 
-        ## Objects
+        ## Initialize object pose configurations
         testing_range_box_pos_x_min = self.config_mobiman.goal_range_min_x
         testing_range_box_pos_x_max = self.config_mobiman.goal_range_max_x
-        testing_range_box_n_points_x = 3
-
+        
         testing_range_box_pos_y_min = self.config_mobiman.goal_range_min_y
         testing_range_box_pos_y_max = self.config_mobiman.goal_range_max_y
-        testing_range_box_n_points_y = 1
 
         testing_range_box_pos_z_min = self.config_mobiman.goal_range_min_z
         testing_range_box_pos_z_max = self.config_mobiman.goal_range_min_z
-        testing_range_box_n_points_z = 1
 
         box_pos_x_lin = np.linspace(testing_range_box_pos_x_min, testing_range_box_pos_x_max, testing_range_box_n_points_x)
         box_pos_y_lin = np.linspace(testing_range_box_pos_y_min, testing_range_box_pos_y_max, testing_range_box_n_points_y)
