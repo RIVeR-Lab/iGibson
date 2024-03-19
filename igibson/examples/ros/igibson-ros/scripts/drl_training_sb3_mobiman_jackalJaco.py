@@ -40,7 +40,7 @@ try:
     import gym
     import torch as th
     import torch.nn as nn
-    from stable_baselines3 import PPO, SAC, DDPG, A2C
+    from stable_baselines3 import PPO, SAC, DDPG, A2C, DQN
     #from stable_baselines3.common.evaluation import evaluate_policy
     #from stable_baselines3.common.preprocessing import maybe_transpose
     from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
@@ -419,6 +419,25 @@ def main(selection="user", headless=False, short_exec=False):
             while 1:
                 continue
 
+        elif rl_algorithm == "DQN":
+            print("[drl_training_sb3_mobiman_jackalJaco::__main__] DQN IS IN CHARGE!")
+            policy_kwargs = dict(net_arch=[400, 300], 
+                                 activation_fn=th.nn.ReLU)
+            
+            model = DQN(
+                "MlpPolicy", 
+                env, 
+                learning_rate=learning_rate, # type: ignore
+                buffer_size=5000,
+                learning_starts=500,
+                batch_size=250, # type: ignore
+                train_freq=4,
+                #ent_coef='auto', # type: ignore
+                tensorboard_log=tensorboard_log_path, 
+                policy_kwargs=policy_kwargs, 
+                device="cuda", 
+                verbose=1)
+            
         else:
             print("[drl_training_sb3_mobiman_jackalJaco::__main__] PPO IS IN CHARGE!")
             policy_kwargs = dict(net_arch=dict(pi=[400, 300], vf=[400, 300]), 
