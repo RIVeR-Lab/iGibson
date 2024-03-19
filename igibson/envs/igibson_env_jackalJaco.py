@@ -3551,6 +3551,7 @@ class iGibsonEnv(BaseEnv):
     def get_reward_step_com(self):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_com] START")
 
+        reward_step_com = 0.0
         if self.mpc_action_result_total_timestep > 0:
             reward_step_com_val = self.mpc_action_result_com_error_norm_total / self.mpc_action_result_total_timestep
 
@@ -3558,9 +3559,8 @@ class iGibsonEnv(BaseEnv):
             if reward_step_com_val > self.config_mobiman.reward_step_target_com_threshold:
                 reward_step_com *= -1
         else:
-            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_com] NO mpc_action_result_total_timestep !!!")
-            reward_step_com_val = 0.0
-
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_com] NO mpc_action_result_total_timestep !!!")
+            
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_com] mpc_action_result_total_timestep: " + str(self.mpc_action_result_total_timestep))
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_com] mpc_action_result_com_error_norm_total: " + str(self.mpc_action_result_com_error_norm_total))
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_com] reward_step_target_com_threshold: " + str(self.config_mobiman.reward_step_target_com_threshold))

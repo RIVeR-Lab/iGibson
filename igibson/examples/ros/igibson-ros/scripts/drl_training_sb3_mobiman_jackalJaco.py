@@ -431,7 +431,8 @@ def main(selection="user", headless=False, short_exec=False):
                 buffer_size=5000,
                 learning_starts=500,
                 batch_size=250, # type: ignore
-                train_freq=4,
+                train_freq=5,
+                target_update_interval=500,
                 #ent_coef='auto', # type: ignore
                 tensorboard_log=tensorboard_log_path, 
                 policy_kwargs=policy_kwargs, 
