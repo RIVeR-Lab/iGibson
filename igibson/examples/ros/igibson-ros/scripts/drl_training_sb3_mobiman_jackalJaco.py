@@ -368,98 +368,98 @@ def main(selection="user", headless=False, short_exec=False):
     # Set learning model
     if observation_space_type == "mobiman_FC":
         
-        n_actions = env.action_space
-        print("[drl_training_sb3_mobiman_jackalJaco::__main__] n_actions: " + str(n_actions))
-        
-        if rl_algorithm == "SAC":
-            print("[drl_training_sb3_mobiman_jackalJaco::__main__] SAC IS IN CHARGE!")
-            policy_kwargs = dict(net_arch=dict(pi=[400, 300], qf=[400, 300]), 
-                                 activation_fn=th.nn.ReLU)
-            
-            model = SAC(
-                "MlpPolicy", 
-                env, 
-                learning_rate=learning_rate, # type: ignore
-                learning_starts=500,
-                buffer_size=5000,
-                batch_size=batch_size, # type: ignore
-                train_freq=4,
-                ent_coef='auto', # type: ignore
-                tensorboard_log=tensorboard_log_path, 
-                policy_kwargs=policy_kwargs, 
-                device="cuda", 
-                verbose=1)
-        
-        elif rl_algorithm == "DDPG":
-            #print("[drl_training_sb3_mobiman_jackalJaco::__main__] NUA TODO: DDPG IS NOT IMPLEMENTED YET!")
-            #print("[drl_training_sb3_mobiman_jackalJaco::__main__] DEBUG_INF")
-            #while 1:
-            #    continue
-
-            print("[drl_training_sb3_mobiman_jackalJaco::__main__] DDPG IS IN CHARGE!")
-            policy_kwargs = dict(net_arch=dict(pi=[400, 300], qf=[400, 300]), 
-                                 activation_fn=th.nn.ReLU)
-            
-            model = DDPG(
-                "MlpPolicy", 
-                env, 
-                learning_rate=learning_rate, # type: ignore
-                learning_starts=500,
-                batch_size=batch_size, # type: ignore
-                train_freq=10,
-                #ent_coef='auto', # type: ignore
-                tensorboard_log=tensorboard_log_path, 
-                policy_kwargs=policy_kwargs, 
-                device="cuda", 
-                verbose=1)
-
-        elif rl_algorithm == "A2C":
-            print("[drl_training_sb3_mobiman_jackalJaco::__main__] A2C IS NOT IMPLEMENTED YET!")
-            print("[drl_training_sb3_mobiman_jackalJaco::__main__] DEBUG_INF")
-            while 1:
-                continue
-
-        elif rl_algorithm == "DQN":
-            print("[drl_training_sb3_mobiman_jackalJaco::__main__] DQN IS IN CHARGE!")
-            policy_kwargs = dict(net_arch=[400, 300], 
-                                 activation_fn=th.nn.ReLU)
-            
-            model = DQN(
-                "MlpPolicy", 
-                env, 
-                learning_rate=learning_rate, # type: ignore
-                buffer_size=5000,
-                learning_starts=500,
-                batch_size=250, # type: ignore
-                train_freq=5,
-                target_update_interval=500,
-                #ent_coef='auto', # type: ignore
-                tensorboard_log=tensorboard_log_path, 
-                policy_kwargs=policy_kwargs, 
-                device="cuda", 
-                verbose=1)
-            
-        else:
-            print("[drl_training_sb3_mobiman_jackalJaco::__main__] PPO IS IN CHARGE!")
-            policy_kwargs = dict(net_arch=dict(pi=[400, 300], vf=[400, 300]), 
-                                 activation_fn=th.nn.ReLU)
-            
-            model = PPO(
-                "MlpPolicy", 
-                env, 
-                learning_rate=learning_rate, # type: ignore
-                n_steps=n_steps, # type: ignore
-                batch_size=batch_size, # type: ignore
-                ent_coef=ent_coef, # type: ignore
-                tensorboard_log=tensorboard_log_path, 
-                policy_kwargs=policy_kwargs, 
-                device="cuda", 
-                verbose=1)
-        
         if initial_training_path == "":
             total_training_timesteps = training_timesteps
             print("[drl_training_sb3_mobiman_jackalJaco::__main__] No initial_trained_model is loaded!")
             rospy.logdebug("[drl_training_sb3_mobiman_jackalJaco::__main__] No initial_trained_model is loaded!")
+            
+            n_actions = env.action_space
+            print("[drl_training_sb3_mobiman_jackalJaco::__main__] n_actions: " + str(n_actions))
+            
+            if rl_algorithm == "SAC":
+                print("[drl_training_sb3_mobiman_jackalJaco::__main__] SAC IS IN CHARGE!")
+                policy_kwargs = dict(net_arch=dict(pi=[400, 300], qf=[400, 300]), 
+                                    activation_fn=th.nn.ReLU)
+                
+                model = SAC(
+                    "MlpPolicy", 
+                    env, 
+                    learning_rate=learning_rate, # type: ignore
+                    learning_starts=500,
+                    buffer_size=5000,
+                    batch_size=batch_size, # type: ignore
+                    train_freq=4,
+                    ent_coef='auto', # type: ignore
+                    tensorboard_log=tensorboard_log_path, 
+                    policy_kwargs=policy_kwargs, 
+                    device="cuda", 
+                    verbose=1)
+            
+            elif rl_algorithm == "DDPG":
+                #print("[drl_training_sb3_mobiman_jackalJaco::__main__] NUA TODO: DDPG IS NOT IMPLEMENTED YET!")
+                #print("[drl_training_sb3_mobiman_jackalJaco::__main__] DEBUG_INF")
+                #while 1:
+                #    continue
+
+                print("[drl_training_sb3_mobiman_jackalJaco::__main__] DDPG IS IN CHARGE!")
+                policy_kwargs = dict(net_arch=dict(pi=[400, 300], qf=[400, 300]), 
+                                    activation_fn=th.nn.ReLU)
+                
+                model = DDPG(
+                    "MlpPolicy", 
+                    env, 
+                    learning_rate=learning_rate, # type: ignore
+                    learning_starts=500,
+                    batch_size=batch_size, # type: ignore
+                    train_freq=10,
+                    #ent_coef='auto', # type: ignore
+                    tensorboard_log=tensorboard_log_path, 
+                    policy_kwargs=policy_kwargs, 
+                    device="cuda", 
+                    verbose=1)
+
+            elif rl_algorithm == "A2C":
+                print("[drl_training_sb3_mobiman_jackalJaco::__main__] A2C IS NOT IMPLEMENTED YET!")
+                print("[drl_training_sb3_mobiman_jackalJaco::__main__] DEBUG_INF")
+                while 1:
+                    continue
+
+            elif rl_algorithm == "DQN":
+                print("[drl_training_sb3_mobiman_jackalJaco::__main__] DQN IS IN CHARGE!")
+                policy_kwargs = dict(net_arch=[400, 300], 
+                                    activation_fn=th.nn.ReLU)
+                
+                model = DQN(
+                    "MlpPolicy", 
+                    env, 
+                    learning_rate=learning_rate, # type: ignore
+                    buffer_size=5000,
+                    learning_starts=500,
+                    batch_size=250, # type: ignore
+                    train_freq=5,
+                    target_update_interval=500,
+                    #ent_coef='auto', # type: ignore
+                    tensorboard_log=tensorboard_log_path, 
+                    policy_kwargs=policy_kwargs, 
+                    device="cuda", 
+                    verbose=1)
+                
+            else:
+                print("[drl_training_sb3_mobiman_jackalJaco::__main__] PPO IS IN CHARGE!")
+                policy_kwargs = dict(net_arch=dict(pi=[400, 300], vf=[400, 300]), 
+                                    activation_fn=th.nn.ReLU)
+                
+                model = PPO(
+                    "MlpPolicy", 
+                    env, 
+                    learning_rate=learning_rate, # type: ignore
+                    n_steps=n_steps, # type: ignore
+                    batch_size=batch_size, # type: ignore
+                    ent_coef=ent_coef, # type: ignore
+                    tensorboard_log=tensorboard_log_path, 
+                    policy_kwargs=policy_kwargs, 
+                    device="cuda", 
+                    verbose=1)
 
         else:
             initial_trained_model_path = mobiman_path + data_path + initial_training_path + "trained_model" # type: ignore
@@ -473,6 +473,9 @@ def main(selection="user", headless=False, short_exec=False):
             
             elif rl_algorithm == "A2C":
                 model = A2C.load(initial_trained_model, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+
+            elif rl_algorithm == "DQN":
+                model = DQN.load(initial_trained_model, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
             
             else:
                 model = PPO.load(initial_trained_model, env=env, tensorboard_log=tensorboard_log_path) # type: ignore

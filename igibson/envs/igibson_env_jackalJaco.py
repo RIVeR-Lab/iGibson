@@ -1785,25 +1785,28 @@ class iGibsonEnv(BaseEnv):
         else:
             # Step Reward 1: model mode
             reward_step_mode = 0
-
+            
             if self.model_mode == 0:
                 reward_step_mode = self.config_mobiman.reward_step_mode0
 
-            elif self.model_mode == 1:
+            elif self.model_mode == 1 and (self.current_base_distance2goal_2D > self.config_mobiman.reward_step_goal_dist_threshold_m1) and self.flag_action_target:
+                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] ARM MOTION ")
+                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] ARM MOTION current_base_distance2goal_2D: " + str(self.current_base_distance2goal_2D))
+                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] ARM MOTION reward_step_goal_dist_threshold_m1: " + str(self.config_mobiman.reward_step_goal_dist_threshold_m1))
+                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] ARM MOTION flag_action_target: " + str(self.flag_action_target))
                 reward_step_mode = self.config_mobiman.reward_step_mode1
 
-            elif self.model_mode == 2:
+            elif self.model_mode == 2 and (self.current_base_distance2goal_2D > self.config_mobiman.reward_step_goal_dist_threshold_m2) and self.flag_action_target:
+                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] WHOLE-BODY MOTION ")
+                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] WHOLE-BODY MOTION current_base_distance2goal_2D: " + str(self.current_base_distance2goal_2D))
+                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] WHOLE-BODY MOTION reward_step_goal_dist_threshold_m2: " + str(self.config_mobiman.reward_step_goal_dist_threshold_m2))
+                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] WHOLE-BODY MOTION flag_action_target: " + str(self.flag_action_target))
                 reward_step_mode = self.config_mobiman.reward_step_mode2
 
-            else:
-                reward_step_mode = self.config_mobiman.reward_step_mode2
-                print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] Invalid self.model_mode (reward_step_mode): " + str(self.model_mode) + "!")
-                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] DEBUG_INF_1")
-                #while 1:
-                #    continue
             weighted_reward_step_mode = self.config_mobiman.alpha_step_mode * reward_step_mode # type: ignore
 
-            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] reward_step_mode: " + str(reward_step_mode))
+            #
+            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] weighted_reward_step_goal: " + str(weighted_reward_step_goal))
             #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] weighted_reward_step_goal: " + str(weighted_reward_step_goal))
 
             # Step Reward 2: goal
@@ -3463,12 +3466,13 @@ class iGibsonEnv(BaseEnv):
             else:
                 #reward_step_goal = self.config_mobiman.reward_step_goal_scale * dR * (dGR0 - dGR1) / (dGR0 * abs(dGR0 - dGR1)) 
                 reward_step_goal = self.config_mobiman.reward_step_goal_scale * dR * (dGR0 - dGR1) / (dGR0 * abs(dGR0 - dGR1)) 
-        '''
+        
 
         if dGR1 < self.config_mobiman.reward_step_goal_dist_threshold:
             if self.flag_print_info:
                 print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_reward_step_goal] Bro it's so close, but be careful!")
             reward_step_goal += (self.config_mobiman.reward_step_goal_dist_scale * self.config_mobiman.reward_step_goal_scale)
+        '''
         
         reward_step_goal = round(reward_step_goal, 2)
         
