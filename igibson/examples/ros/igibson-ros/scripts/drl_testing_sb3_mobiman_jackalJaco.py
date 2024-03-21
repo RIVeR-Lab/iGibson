@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 '''
-LAST UPDATE: 2024.02.26
+LAST UPDATE: 2024.03.20
 
 AUTHOR: Neset Unver Akmandor (NUA)
 
@@ -45,7 +45,7 @@ try:
     import gym
     import torch as th
     import torch.nn as nn
-    from stable_baselines3 import PPO, SAC, DDPG, A2C
+    from stable_baselines3 import PPO, SAC, DDPG, A2C, DQN
     from stable_baselines3.common.evaluation import evaluate_policy
     #from stable_baselines3.common.preprocessing import maybe_transpose
     from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
@@ -460,6 +460,9 @@ def main(selection="user", headless=False, short_exec=False):
         
         elif rl_algorithm == "A2C":
             model = A2C.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+
+        elif rl_algorithm == "DQN":
+            model = DQN.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
         
         else:
             model = PPO.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
