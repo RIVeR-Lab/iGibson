@@ -214,49 +214,66 @@ def main(selection="user", headless=False, short_exec=False):
     training_log_name = rospy.get_param('training_log_name', "")
     igibson_config_file = rospy.get_param('igibson_config_file', "")
     flag_drl = rospy.get_param('flag_drl', True)
-    #mode = rospy.get_param('mode', "")
-    rl_algorithm = rospy.get_param('rl_algorithm', "")
+
     motion_planning_algorithm = rospy.get_param('motion_planning_algorithm', "")
     observation_space_type = rospy.get_param('observation_space_type', "")
-    world_name = rospy.get_param('world_name', "")
-    task_and_robot_environment_name = rospy.get_param('task_and_robot_environment_name', "")
+    max_episode_steps = rospy.get_param('max_episode_steps', 0)
+    
     n_robot = rospy.get_param('n_robot', 0)
     data_path = rospy.get_param('drl_data_path', "")
+    
+    rl_algorithm = rospy.get_param('rl_algorithm', "")
+
     learning_rate = rospy.get_param('learning_rate', 0)
     n_steps = rospy.get_param('n_steps', 0)
     batch_size = rospy.get_param('batch_size', 0)
     ent_coef = rospy.get_param('ent_coef', 0)
+    learning_starts = rospy.get_param('learning_starts', 0)
+    buffer_size = rospy.get_param('buffer_size', 0)
+    train_freq = rospy.get_param('train_freq', 0)
+    target_update_interval = rospy.get_param('target_update_interval', 0)
+
     training_timesteps = rospy.get_param('training_timesteps', 0)
-    max_episode_steps = rospy.get_param('max_episode_steps', 0)
+
     initial_training_path = rospy.get_param('initial_training_path', "")
     training_checkpoint_freq = rospy.get_param('training_checkpoint_freq', 0)
     plot_title = rospy.get_param('plot_title', "")
     plot_moving_average_window_size_timesteps = rospy.get_param('plot_moving_average_window_size_timesteps', 0)
     plot_moving_average_window_size_episodes = rospy.get_param('plot_moving_average_window_size_episodes', 0)
 
+    task_and_robot_environment_name = rospy.get_param('task_and_robot_environment_name', "")
+    world_name = rospy.get_param('world_name', "")
+
     print("[drl_training_sb3_mobiman_jackalJaco::main] flag_print_info: " + str(flag_print_info))
     print("[drl_training_sb3_mobiman_jackalJaco::main] training_log_name: " + str(training_log_name))
     print("[drl_training_sb3_mobiman_jackalJaco::main] igibson_config_file: " + str(igibson_config_file))
     print("[drl_training_sb3_mobiman_jackalJaco::main] flag_drl: " + str(flag_drl))
-    #print("[drl_training_sb3_mobiman_jackalJaco::main] mode: " + str(mode))
-    print("[drl_training_sb3_mobiman_jackalJaco::main] rl_algorithm: " + str(rl_algorithm))
     print("[drl_training_sb3_mobiman_jackalJaco::main] motion_planning_algorithm: " + str(motion_planning_algorithm))
     print("[drl_training_sb3_mobiman_jackalJaco::main] observation_space_type: " + str(observation_space_type))
-    print("[drl_training_sb3_mobiman_jackalJaco::main] world_name: " + str(world_name))
-    print("[drl_training_sb3_mobiman_jackalJaco::main] task_and_robot_environment_name: " + str(task_and_robot_environment_name))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] max_episode_steps: " + str(max_episode_steps))
+    
     print("[drl_training_sb3_mobiman_jackalJaco::main] n_robot: " + str(n_robot))
     print("[drl_training_sb3_mobiman_jackalJaco::main] data_path: " + str(data_path))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] initial_training_path: " + str(initial_training_path))
+
+    print("[drl_training_sb3_mobiman_jackalJaco::main] rl_algorithm: " + str(rl_algorithm))
     print("[drl_training_sb3_mobiman_jackalJaco::main] learning_rate: " + str(learning_rate))
     print("[drl_training_sb3_mobiman_jackalJaco::main] n_steps: " + str(n_steps))
     print("[drl_training_sb3_mobiman_jackalJaco::main] batch_size: " + str(batch_size))
     print("[drl_training_sb3_mobiman_jackalJaco::main] ent_coef: " + str(ent_coef))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] learning_starts: " + str(learning_starts))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] buffer_size: " + str(buffer_size))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] train_freq: " + str(train_freq))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] target_update_interval: " + str(target_update_interval))
     print("[drl_training_sb3_mobiman_jackalJaco::main] training_timesteps: " + str(training_timesteps))
-    print("[drl_training_sb3_mobiman_jackalJaco::main] max_episode_steps: " + str(max_episode_steps))
-    print("[drl_training_sb3_mobiman_jackalJaco::main] initial_training_path: " + str(initial_training_path))
     print("[drl_training_sb3_mobiman_jackalJaco::main] training_checkpoint_freq: " + str(training_checkpoint_freq))
+    
     print("[drl_training_sb3_mobiman_jackalJaco::main] plot_title: " + str(plot_title))
     print("[drl_training_sb3_mobiman_jackalJaco::main] plot_moving_average_window_size_timesteps: " + str(plot_moving_average_window_size_timesteps))
     print("[drl_training_sb3_mobiman_jackalJaco::main] plot_moving_average_window_size_episodes: " + str(plot_moving_average_window_size_episodes))
+
+    print("[drl_training_sb3_mobiman_jackalJaco::main] task_and_robot_environment_name: " + str(task_and_robot_environment_name))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] world_name: " + str(world_name))
 
     ## Create the folder name that the data is kept
     data_file_tag = createFileName()
@@ -273,21 +290,24 @@ def main(selection="user", headless=False, short_exec=False):
     ## Keep all parameters in an array to save
     training_log_data = []
     training_log_data.append(["igibson_config_file", igibson_config_file])
-    training_log_data.append(["rl_algorithm", rl_algorithm])
     training_log_data.append(["motion_planning_algorithm", motion_planning_algorithm])
     training_log_data.append(["observation_space_type", observation_space_type])
-    training_log_data.append(["world_name", world_name])
-    training_log_data.append(["task_and_robot_environment_name", task_and_robot_environment_name])
+    training_log_data.append(["max_episode_steps", max_episode_steps])
     training_log_data.append(["n_robot", n_robot])
     training_log_data.append(["data_path", data_path])
+    training_log_data.append(["initial_training_path", initial_training_path])
+    training_log_data.append(["rl_algorithm", rl_algorithm])
     training_log_data.append(["learning_rate", learning_rate])
     training_log_data.append(["n_steps", n_steps])
     training_log_data.append(["batch_size", batch_size])
     training_log_data.append(["ent_coef", ent_coef])
+    training_log_data.append(["learning_starts", learning_starts])
+    training_log_data.append(["train_freq", train_freq])
+    training_log_data.append(["target_update_interval", target_update_interval])
     training_log_data.append(["training_timesteps", training_timesteps])
-    training_log_data.append(["max_episode_steps", max_episode_steps])
-    training_log_data.append(["initial_training_path", initial_training_path])
     training_log_data.append(["training_checkpoint_freq", training_checkpoint_freq])
+    training_log_data.append(["world_name", world_name])
+    training_log_data.append(["task_and_robot_environment_name", task_and_robot_environment_name])
     training_log_data.append(["plot_title", plot_title])
     training_log_data.append(["plot_moving_average_window_size_timesteps", plot_moving_average_window_size_timesteps])
     training_log_data.append(["plot_moving_average_window_size_episodes", plot_moving_average_window_size_episodes])
@@ -385,11 +405,11 @@ def main(selection="user", headless=False, short_exec=False):
                     "MlpPolicy", 
                     env, 
                     learning_rate=learning_rate, # type: ignore
-                    learning_starts=500,
-                    buffer_size=5000,
+                    learning_starts=learning_starts,
+                    buffer_size=buffer_size,
                     batch_size=batch_size, # type: ignore
-                    train_freq=4,
-                    ent_coef='auto', # type: ignore
+                    train_freq=train_freq,
+                    ent_coef=ent_coef, # type: ignore
                     tensorboard_log=tensorboard_log_path, 
                     policy_kwargs=policy_kwargs, 
                     device="cuda", 
@@ -409,9 +429,9 @@ def main(selection="user", headless=False, short_exec=False):
                     "MlpPolicy", 
                     env, 
                     learning_rate=learning_rate, # type: ignore
-                    learning_starts=500,
+                    learning_starts=learning_starts,
                     batch_size=batch_size, # type: ignore
-                    train_freq=10,
+                    train_freq=train_freq,
                     #ent_coef='auto', # type: ignore
                     tensorboard_log=tensorboard_log_path, 
                     policy_kwargs=policy_kwargs, 
@@ -433,11 +453,11 @@ def main(selection="user", headless=False, short_exec=False):
                     "MlpPolicy", 
                     env, 
                     learning_rate=learning_rate, # type: ignore
-                    buffer_size=5000,
-                    learning_starts=500,
-                    batch_size=250, # type: ignore
-                    train_freq=5,
-                    target_update_interval=500,
+                    buffer_size=buffer_size,
+                    learning_starts=learning_starts,
+                    batch_size=batch_size, # type: ignore
+                    train_freq=train_freq,
+                    target_update_interval=target_update_interval,
                     #ent_coef='auto', # type: ignore
                     tensorboard_log=tensorboard_log_path, 
                     policy_kwargs=policy_kwargs, 
