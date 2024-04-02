@@ -415,8 +415,8 @@ class iGibsonEnv(BaseEnv):
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::create_objects] START")
 
         for key,val in objects.items():
+            
             if "conveyor" in key:
-
                 if self.drl_mode == "training":
                     self.conveyor_pos = self.config_igibson["conveyor_pos"]
                     pointer = p.loadURDF(os.path.join(self.urdf_path, f"{key}.urdf"),
@@ -428,6 +428,50 @@ class iGibsonEnv(BaseEnv):
                     self.conveyor_pos = self.config_igibson["conveyor_pos"]
                     pointer = p.loadURDF(os.path.join(self.urdf_path, f"{key}.urdf"),
                                          basePosition = self.conveyor_pos[:],
+                                         baseOrientation = [0, 0, 0, 1])
+                    self.spawned_objects.append(pointer)
+
+                else:
+                    print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::create_objects] Invalid drl_mode!")
+                    print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::create_objects] DEBUG_INF_0")
+                    while 1:
+                        continue
+
+            elif "actor_0" in key:
+
+                if self.drl_mode == "training":
+                    self.actor_0_pos = self.config_igibson["actor_0_pos"]
+                    pointer = p.loadURDF(os.path.join(self.urdf_path, f"{key}.urdf"),
+                                         basePosition = self.actor_0_pos[:],
+                                         baseOrientation = [0, 0, 0, 1])
+                    self.spawned_objects.append(pointer)
+
+                elif self.drl_mode == "testing":
+                    self.actor_0_pos = self.config_igibson["actor_0_pos"]
+                    pointer = p.loadURDF(os.path.join(self.urdf_path, f"{key}.urdf"),
+                                         basePosition = self.actor_0_pos[:],
+                                         baseOrientation = [0, 0, 0, 1])
+                    self.spawned_objects.append(pointer)
+
+                else:
+                    print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::create_objects] Invalid drl_mode!")
+                    print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::create_objects] DEBUG_INF_0")
+                    while 1:
+                        continue
+
+            elif "actor_1" in key:
+
+                if self.drl_mode == "training":
+                    self.actor_1_pos = self.config_igibson["actor_1_pos"]
+                    pointer = p.loadURDF(os.path.join(self.urdf_path, f"{key}.urdf"),
+                                         basePosition = self.actor_1_pos[:],
+                                         baseOrientation = [0, 0, 0, 1])
+                    self.spawned_objects.append(pointer)
+
+                elif self.drl_mode == "testing":
+                    self.actor_1_pos = self.config_igibson["actor_1_pos"]
+                    pointer = p.loadURDF(os.path.join(self.urdf_path, f"{key}.urdf"),
+                                         basePosition = self.actor_1_pos[:],
                                          baseOrientation = [0, 0, 0, 1])
                     self.spawned_objects.append(pointer)
 
@@ -474,8 +518,8 @@ class iGibsonEnv(BaseEnv):
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] START")
 
         for idx, (key,val) in enumerate(self.objects.items()):
+            
             if "conveyor" in key:
-
                 if self.drl_mode == "training":
                     p.resetBasePositionAndOrientation(self.spawned_objects[idx], 
                                                       posObj=self.conveyor_pos[:], 
@@ -491,22 +535,38 @@ class iGibsonEnv(BaseEnv):
                     print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] DEBUG_INF_0")
                     while 1:
                         continue
-            elif "obstacle" in key:
+            
+            elif "actor_0" in key:
                 if self.drl_mode == "training":
                     pos_x = random.uniform(self.config_mobiman.goal_range_min_x, self.config_mobiman.goal_range_max_x)
                     pos_y = random.uniform(self.config_mobiman.goal_range_min_y, self.config_mobiman.goal_range_max_y)
                     p.resetBasePositionAndOrientation(self.spawned_objects[idx], 
-                                                      posObj=[pos_x, pos_y, 0], 
+                                                      posObj=self.actor_0_pos[:], 
                                                       ornObj=[0, 0, 0, 1])
                 elif self.drl_mode == "testing":
                     pos_x = random.uniform(self.config_mobiman.goal_range_min_x, self.config_mobiman.goal_range_max_x)
                     pos_y = random.uniform(self.config_mobiman.goal_range_min_y, self.config_mobiman.goal_range_max_y)
                     p.resetBasePositionAndOrientation(self.spawned_objects[idx], 
-                                                      posObj=[pos_x, pos_y, 0], 
+                                                      posObj=self.actor_0_pos[:], 
                                                       ornObj=[0, 0, 0, 1])
                 continue
-            else:
-                
+
+            elif "actor_1" in key:
+                if self.drl_mode == "training":
+                    pos_x = random.uniform(self.config_mobiman.goal_range_min_x, self.config_mobiman.goal_range_max_x)
+                    pos_y = random.uniform(self.config_mobiman.goal_range_min_y, self.config_mobiman.goal_range_max_y)
+                    p.resetBasePositionAndOrientation(self.spawned_objects[idx], 
+                                                      posObj=self.actor_1_pos[:], 
+                                                      ornObj=[0, 0, 0, 1])
+                elif self.drl_mode == "testing":
+                    pos_x = random.uniform(self.config_mobiman.goal_range_min_x, self.config_mobiman.goal_range_max_x)
+                    pos_y = random.uniform(self.config_mobiman.goal_range_min_y, self.config_mobiman.goal_range_max_y)
+                    p.resetBasePositionAndOrientation(self.spawned_objects[idx], 
+                                                      posObj=self.actor_1_pos[:], 
+                                                      ornObj=[0, 0, 0, 1])
+                continue
+            
+            else:   
                 if self.drl_mode == "training":
                     shift_x = random.uniform(self.config_mobiman.goal_range_min_x, self.config_mobiman.goal_range_max_x)
                     shift_y = random.uniform(self.config_mobiman.goal_range_min_y, self.config_mobiman.goal_range_max_y)
