@@ -231,6 +231,7 @@ def main(selection="user", headless=False, short_exec=False):
     learning_starts = rospy.get_param('learning_starts', 0)
     buffer_size = rospy.get_param('buffer_size', 0)
     train_freq = rospy.get_param('train_freq', 0)
+    gradient_steps = rospy.get_param('gradient_steps', 0)
     target_update_interval = rospy.get_param('target_update_interval', 0)
 
     training_timesteps = rospy.get_param('training_timesteps', 0)
@@ -264,6 +265,7 @@ def main(selection="user", headless=False, short_exec=False):
     print("[drl_training_sb3_mobiman_jackalJaco::main] learning_starts: " + str(learning_starts))
     print("[drl_training_sb3_mobiman_jackalJaco::main] buffer_size: " + str(buffer_size))
     print("[drl_training_sb3_mobiman_jackalJaco::main] train_freq: " + str(train_freq))
+    print("[drl_training_sb3_mobiman_jackalJaco::main] gradient_steps: " + str(gradient_steps))
     print("[drl_training_sb3_mobiman_jackalJaco::main] target_update_interval: " + str(target_update_interval))
     print("[drl_training_sb3_mobiman_jackalJaco::main] training_timesteps: " + str(training_timesteps))
     print("[drl_training_sb3_mobiman_jackalJaco::main] training_checkpoint_freq: " + str(training_checkpoint_freq))
@@ -303,6 +305,7 @@ def main(selection="user", headless=False, short_exec=False):
     training_log_data.append(["ent_coef", ent_coef])
     training_log_data.append(["learning_starts", learning_starts])
     training_log_data.append(["train_freq", train_freq])
+    training_log_data.append(["gradient_steps", gradient_steps])
     training_log_data.append(["target_update_interval", target_update_interval])
     training_log_data.append(["training_timesteps", training_timesteps])
     training_log_data.append(["training_checkpoint_freq", training_checkpoint_freq])
@@ -409,6 +412,7 @@ def main(selection="user", headless=False, short_exec=False):
                     buffer_size=buffer_size,
                     batch_size=batch_size, # type: ignore
                     train_freq=train_freq,
+                    gradient_steps=gradient_steps,
                     ent_coef=ent_coef, # type: ignore
                     tensorboard_log=tensorboard_log_path, 
                     policy_kwargs=policy_kwargs, 
