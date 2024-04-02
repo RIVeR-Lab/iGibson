@@ -491,6 +491,20 @@ class iGibsonEnv(BaseEnv):
                     print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] DEBUG_INF_0")
                     while 1:
                         continue
+            elif "obstacle" in key:
+                if self.drl_mode == "training":
+                    pos_x = random.uniform(self.config_mobiman.goal_range_min_x, self.config_mobiman.goal_range_max_x)
+                    pos_y = random.uniform(self.config_mobiman.goal_range_min_y, self.config_mobiman.goal_range_max_y)
+                    p.resetBasePositionAndOrientation(self.spawned_objects[idx], 
+                                                      posObj=[pos_x, pos_y, 0], 
+                                                      ornObj=[0, 0, 0, 1])
+                elif self.drl_mode == "testing":
+                    pos_x = random.uniform(self.config_mobiman.goal_range_min_x, self.config_mobiman.goal_range_max_x)
+                    pos_y = random.uniform(self.config_mobiman.goal_range_min_y, self.config_mobiman.goal_range_max_y)
+                    p.resetBasePositionAndOrientation(self.spawned_objects[idx], 
+                                                      posObj=[pos_x, pos_y, 0], 
+                                                      ornObj=[0, 0, 0, 1])
+                continue
             else:
                 
                 if self.drl_mode == "training":

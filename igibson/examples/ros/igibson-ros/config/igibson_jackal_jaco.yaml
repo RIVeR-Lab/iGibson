@@ -27,7 +27,7 @@ task: mobiman_pick
 ## Objects
 objects: {conveyor_belt: 101_conveyor, 
           red_cube: 102_cube,
-          obstacle_cube: 102_cube,
-          obstacle_conveyor: 102_cube}
+          obstacle_1: 102_cube,
+          obstacle_2: 102_cube}
 
 conveyor_pos: [0.0, 2.0, 0.25]
