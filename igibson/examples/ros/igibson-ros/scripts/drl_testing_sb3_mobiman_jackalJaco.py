@@ -326,6 +326,7 @@ def main(selection="user", headless=False, short_exec=False):
     rl_algorithm = rospy.get_param('rl_algorithm', "")
     data_path = rospy.get_param('drl_data_path', "")
     initial_training_path = rospy.get_param('initial_training_path', "")
+    initial_training_model_name = rospy.get_param('initial_training_model_name', "")
     testing_benchmark_name = rospy.get_param('testing_benchmark_name', "")
     n_testing_eval_episodes = rospy.get_param('n_testing_eval_episodes', "")
     #plot_title = rospy.get_param('plot_title', "")
@@ -336,6 +337,7 @@ def main(selection="user", headless=False, short_exec=False):
     print("[drl_testing_sb3_mobiman_jackalJaco::main] rl_algorithm: " + str(rl_algorithm))
     print("[drl_testing_sb3_mobiman_jackalJaco::main] data_path: " + str(data_path))
     print("[drl_testing_sb3_mobiman_jackalJaco::main] initial_training_path: " + str(initial_training_path))
+    print("[drl_testing_sb3_mobiman_jackalJaco::main] initial_training_model_name: " + str(initial_training_model_name))
     print("[drl_testing_sb3_mobiman_jackalJaco::main] testing_benchmark_name: " + str(testing_benchmark_name))
     print("[drl_testing_sb3_mobiman_jackalJaco::main] n_testing_eval_episodes: " + str(n_testing_eval_episodes))
     #print("[drl_testing_sb3_mobiman_jackalJaco::main] plot_title: " + str(plot_title))
@@ -357,7 +359,7 @@ def main(selection="user", headless=False, short_exec=False):
     #os.makedirs(data_folder_path, exist_ok=True)
 
     #new_trained_model_file = data_folder_path + "trained_model"
-    testing_log_file_name = "testing_log_" + testing_benchmark_name + ".csv"
+    testing_log_file_name = "testing_log_" + testing_benchmark_name + "_" + initial_training_model_name + ".csv"
     testing_log_file = data_folder_path + testing_log_file_name
     tensorboard_log_path = data_folder_path + rl_algorithm + "_testing_tensorboard/"
 
@@ -367,6 +369,7 @@ def main(selection="user", headless=False, short_exec=False):
     testing_log_data.append(["rl_algorithm", rl_algorithm])
     testing_log_data.append(["data_path", data_path])
     testing_log_data.append(["initial_training_path", initial_training_path])
+    testing_log_data.append(["initial_training_model_name", initial_training_model_name])
     testing_log_data.append(["testing_benchmark_name", testing_benchmark_name])
     testing_log_data.append(["n_testing_eval_episodes", n_testing_eval_episodes])
     #testing_log_data.append(["plot_title", plot_title])
@@ -432,42 +435,28 @@ def main(selection="user", headless=False, short_exec=False):
     #while 1:
     #    continue
 
-    print("[drl_testing_sb3_mobiman_jackalJaco::main] BEFORE Loading initial_training_path: " + initial_training_path)
-    if initial_training_path == "":
-        print("[drl_testing_sb3_mobiman_jackalJaco::main] No initial_trained_model is loaded!")
-        print("[drl_testing_sb3_mobiman_jackalJaco::main] Benchmarking " + str(testing_benchmark_name) + "...")
-    
-        policy_kwargs = dict(net_arch=dict(pi=[400, 300], vf=[400, 300]), 
-                             activation_fn=th.nn.ReLU)
-
-        ## NUA NOTE: THIS MODEL IS UNNECESSARY FOR BENCHMARKS THAT DO NOT USE RL! 
-        model = PPO(
-            "MlpPolicy", 
-            env, 
-            tensorboard_log=tensorboard_log_path, 
-            policy_kwargs=policy_kwargs, 
-            device="cuda", 
-            verbose=1)
-
-    else:
+    if initial_training_model_name == "":
         initial_trained_model_path = mobiman_path + data_path + initial_training_path + "trained_model" # type: ignore
-        
-        if rl_algorithm == "SAC":
-            model = SAC.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
-        
-        elif rl_algorithm == "DDPG":
-            model = DDPG.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
-        
-        elif rl_algorithm == "A2C":
-            model = A2C.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+    else:
+        initial_trained_model_path = mobiman_path + data_path + initial_training_path + initial_training_model_name # type: ignore
+    
+    if rl_algorithm == "SAC":
+        model = SAC.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+    
+    elif rl_algorithm == "DDPG":
+        model = DDPG.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+    
+    elif rl_algorithm == "A2C":
+        model = A2C.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
 
-        elif rl_algorithm == "DQN":
-            model = DQN.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
-        
-        else:
-            model = PPO.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
-        #model.set_env(env)
-        print("[drl_testing_sb3_mobiman_jackalJaco::main] Loaded initial_trained_model_path: " + initial_trained_model_path)
+    elif rl_algorithm == "DQN":
+        model = DQN.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+    
+    else:
+        model = PPO.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+    #model.set_env(env)
+    
+    print("[drl_testing_sb3_mobiman_jackalJaco::main] Loaded initial_trained_model_path: " + initial_trained_model_path)
 
     # Evaluate the policy after training
     start_testing = time.time()
@@ -475,13 +464,13 @@ def main(selection="user", headless=False, short_exec=False):
         #print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
         #print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
         #print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-        print("[drl_testing_sb3_mobiman_jackalJaco::main] Testing eval " + str(env.testing_eval_idx) + " and state " + str(env.testing_idx))
+        #print("[drl_testing_sb3_mobiman_jackalJaco::main] Testing eval " + str(env.testing_eval_idx) + " and state " + str(env.testing_idx))
         mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=n_testing_eval_episodes)
         #print("[drl_testing_sb3_mobiman_jackalJaco::main] Mean reward: " + str(mean_reward))
         #print("[drl_testing_sb3_mobiman_jackalJaco::main] Std reward: +/-" + str(std_reward))
         #print("")
         #print("")
-        print("----------")
+        #print("----------")
     end_testing = time.time()
     testing_time = (end_testing - start_testing) / 60
 

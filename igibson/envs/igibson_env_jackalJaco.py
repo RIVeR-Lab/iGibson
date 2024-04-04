@@ -205,6 +205,9 @@ class iGibsonEnv(BaseEnv):
         self.data = None
         self.oars_data = {'log_file':[], 'episode_index':[], 'step_index':[], 'observation':[], 'action':[], 'reward':[], 'result':[]}
         if self.drl_mode == "testing":
+            self.oars_data['robot_pos_wrt_world'] = []
+            self.oars_data['goal_pos_wrt_world'] = []
+            self.oars_data['obs_pos_wrt_world'] = []
             self.oars_data['testing_index'] = []
             self.oars_data['testing_state'] = []
             self.oars_data['testing_eval_index'] = []
@@ -216,7 +219,8 @@ class iGibsonEnv(BaseEnv):
         self.goal_data = {}
         #self.target_data = {}
         self.arm_data = {}
-        self.occupancy_data = {}
+        self.occupancy_data_wrt_world = {}
+        self.occupancy_data_wrt_robot = {}
         #self.mpc_data = {}
         self.mpc_data_msg = None
         self.manual_target_msg = None
@@ -254,7 +258,7 @@ class iGibsonEnv(BaseEnv):
         
         elif self.drl_mode == "testing":
             self.initialize_testing_domain()
-            self.oar_data_file = data_folder_path + "oar_data_" + drl_mode + "_" + self.ns[1:-1] + "_" + self.config_mobiman.testing_benchmark_name + ".csv"
+            self.oar_data_file = data_folder_path + "oar_data_" + drl_mode + "_" + self.config_mobiman.testing_benchmark_name + self.config_mobiman.initial_training_model_name + ".csv"
         
         else:
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] ERROR: Invalid drl_mode!")
@@ -753,11 +757,24 @@ class iGibsonEnv(BaseEnv):
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_update] occ_withNS: " + str(occ_withNS))
                 (trans_occ_wrt_robot, rot_occ_wrt_robot) = self.listener.lookupTransform(target_frame=robot_frame_name, source_frame=occ_frame_name, time=rospy.Time(0))                
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_update] occ: " + str(occ))
-                self.update_occupancy_data(occ, trans_occ_wrt_robot, rot_occ_wrt_robot)
+                self.update_occupancy_data_wrt_robot(occ, trans_occ_wrt_robot, rot_occ_wrt_robot)
             self.init_occupancy_data_flag = True
 
         except Exception as e3:
             #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_update] ERROR e3: " + str(e3))
+            ...
+
+        try:
+            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_update] occupancy_frame_names: " + str(self.config_mobiman.occupancy_frame_names))
+            for i, occ in enumerate(self.config_mobiman.occupancy_frame_names):
+                occ_frame_name = self.ns + occ
+                (trans_occ_wrt_world, rot_occ_wrt_world) = self.listener.lookupTransform(target_frame=self.config_mobiman.world_frame_name, source_frame=occ_frame_name, time=rospy.Time(0))                
+                #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_update] occ: " + str(occ))
+                self.update_occupancy_data_wrt_world(occ, trans_occ_wrt_world, rot_occ_wrt_world)
+            #self.init_occupancy_data_flag = True
+
+        except Exception as e4:
+            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::timer_update] ERROR e4: " + str(e4))
             ...
 
         '''
@@ -1017,8 +1034,8 @@ class iGibsonEnv(BaseEnv):
     '''
     def initialize_mobiman_occupancy_obs_config(self):
 
-        #self.occupancy_data["names"] = self.config_mobiman.occupancy_frame_names
-        #self.occupancy_data["pos"] =
+        #self.occupancy_data_wrt_robot["names"] = self.config_mobiman.occupancy_frame_names
+        #self.occupancy_data_wrt_robot["pos"] =
 
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_mobiman_occupancy_obs_config] DEBUG_INF")
         #while 1:
@@ -1337,10 +1354,18 @@ class iGibsonEnv(BaseEnv):
     '''
     DESCRIPTION: TODO...
     '''
-    def update_occupancy_data(self, name, trans_occ_wrt_robot, rot_occ_wrt_robot):
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::update_occupancy_data] START")
-        self.occupancy_data[name] = [trans_occ_wrt_robot[0], trans_occ_wrt_robot[1], trans_occ_wrt_robot[2]]
-        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::update_occupancy_data] END")
+    def update_occupancy_data_wrt_world(self, name, trans_occ_wrt_world, rot_occ_wrt_world):
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::update_occupancy_data_wrt_world] START")
+        self.occupancy_data_wrt_world[name] = [trans_occ_wrt_world[0], trans_occ_wrt_world[1], trans_occ_wrt_world[2]]
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::update_occupancy_data_wrt_world] END")
+
+    '''
+    DESCRIPTION: TODO...
+    '''
+    def update_occupancy_data_wrt_robot(self, name, trans_occ_wrt_robot, rot_occ_wrt_robot):
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::update_occupancy_data_wrt_robot] START")
+        self.occupancy_data_wrt_robot[name] = [trans_occ_wrt_robot[0], trans_occ_wrt_robot[1], trans_occ_wrt_robot[2]]
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::update_occupancy_data_wrt_robot] END")
 
     '''
     DESCRIPTION: TODO...
@@ -1922,6 +1947,8 @@ class iGibsonEnv(BaseEnv):
 
             if self.drl_mode == "testing":
 
+                print("[drl_testing_sb3_mobiman_jackalJaco::main] Testing eval " + str(self.testing_eval_idx) + " and state " + str(self.testing_idx))
+                print("----------")
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] TOTAL sample len: " + str(len(self.testing_samples)))
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] testing_idx: " + str(self.testing_idx))
                 #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::compute_reward] testing_eval_idx: " + str(self.testing_eval_idx))
@@ -3296,19 +3323,19 @@ class iGibsonEnv(BaseEnv):
         obs_occ = []
         for i, occ in enumerate(self.config_mobiman.occupancy_frame_names):
             
-            obs_occ_x = self.occupancy_data[occ][0]
+            obs_occ_x = self.occupancy_data_wrt_robot[occ][0]
             if obs_occ_x < -obs_occ_x_max:
                 obs_occ_x = -obs_occ_x_max
             elif obs_occ_x > obs_occ_x_max:
                 obs_occ_x = obs_occ_x_max
 
-            obs_occ_y = self.occupancy_data[occ][1]
+            obs_occ_y = self.occupancy_data_wrt_robot[occ][1]
             if obs_occ_y < -obs_occ_y_max:
                 obs_occ_y = -obs_occ_y_max
             elif obs_occ_y > obs_occ_y_max:
                 obs_occ_y = obs_occ_y_max
 
-            obs_occ_z = self.occupancy_data[occ][2]
+            obs_occ_z = self.occupancy_data_wrt_robot[occ][2]
             if obs_occ_z < -obs_occ_z_max:
                 obs_occ_z = -obs_occ_z_max
             elif obs_occ_z > obs_occ_z_max:
@@ -3802,6 +3829,17 @@ class iGibsonEnv(BaseEnv):
         self.oars_data['result'].append(self.termination_reason)
         
         if self.drl_mode == "testing":
+            self.oars_data['robot_pos_wrt_world'].append([self.robot_data["x"], self.robot_data["y"], self.robot_data["z"]])
+            self.oars_data['goal_pos_wrt_world'].append([self.goal_data["x"], self.goal_data["y"], self.goal_data["z"]])
+
+            obs_pos_wrt_world = []
+            for od in list(self.occupancy_data_wrt_world.keys()):
+                obs_pos_wrt_world.append(od)
+                obs_pos_wrt_world.append(self.occupancy_data_wrt_world[od][0])
+                obs_pos_wrt_world.append(self.occupancy_data_wrt_world[od][1])
+                obs_pos_wrt_world.append(self.occupancy_data_wrt_world[od][2])
+            self.oars_data['obs_pos_wrt_world'].append(obs_pos_wrt_world)
+
             self.oars_data['testing_index'].append(self.testing_idx)
             self.oars_data['testing_state'].append(self.testing_samples[self.testing_idx])
             self.oars_data['testing_eval_index'].append(self.testing_eval_idx)
@@ -3818,6 +3856,10 @@ class iGibsonEnv(BaseEnv):
             self.oars_data['result'].append([])
 
             if self.drl_mode == "testing":
+                self.oars_data['robot_pos_wrt_world'].append([])
+                self.oars_data['goal_pos_wrt_world'].append([])
+                self.oars_data['obs_pos_wrt_world'].append([])
+
                 self.oars_data['testing_index'].append(None)
                 self.oars_data['testing_state'].append([])
                 self.oars_data['testing_eval_index'].append(None)
