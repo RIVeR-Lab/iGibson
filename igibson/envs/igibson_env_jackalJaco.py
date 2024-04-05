@@ -2253,7 +2253,7 @@ class iGibsonEnv(BaseEnv):
             #self.obs = obs_space_min
             self.observation_space = gym.spaces.Box(obs_space_min, obs_space_max)
 
-            #'''
+            '''
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::load_observation_space] obs_mobiman_goal_min shape: " + str(obs_mobiman_goal_min.shape))
             print(obs_mobiman_goal_min)
 
@@ -2292,7 +2292,7 @@ class iGibsonEnv(BaseEnv):
 
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::load_observation_space] obs_space_max shape: " + str(obs_space_max.shape))
             print(obs_space_max)
-            #'''
+            '''
 
         elif self.config_mobiman.observation_space_type == "mobiman_2DCNN_FC":
 
@@ -2358,7 +2358,7 @@ class iGibsonEnv(BaseEnv):
         self.config_mobiman.set_observation_shape(self.observation_space.shape)
 
         print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::load_observation_space] self.observation_space shape: " + str(self.observation_space.shape))
-        print(self.observation_space)
+        #print(self.observation_space)
 
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::load_observation_space] DEBUG INF")
         #while 1:
