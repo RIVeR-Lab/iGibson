@@ -4006,7 +4006,7 @@ class iGibsonEnv(BaseEnv):
         del self.data
         gc.collect()
 
-        print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::write_oar_data] Written Observation-Action-Reward data!")
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::write_oar_data] Written Observation-Action-Reward data!")
 
         '''
         path = self.config_mobiman.data_folder_path + self.ns[1:-1] + "_oar_data.pkl"
