@@ -561,8 +561,8 @@ class iGibsonEnv(BaseEnv):
                                                       posObj=self.actor_0_pos[:], 
                                                       ornObj=[0, 0, 0, 1])
                 elif self.drl_mode == "testing":
-                    #pos_x = random.uniform(self.config_mobiman.goal_range_min_x, self.config_mobiman.goal_range_max_x)
-                    #pos_y = random.uniform(self.config_mobiman.goal_range_min_y, self.config_mobiman.goal_range_max_y)
+                    self.actor_0_pos[0] = self.testing_samples[self.testing_idx][6]
+                    self.actor_0_pos[1] = self.testing_samples[self.testing_idx][7]
                     p.resetBasePositionAndOrientation(self.spawned_objects[idx], 
                                                       posObj=self.actor_0_pos[:], 
                                                       ornObj=[0, 0, 0, 1])
@@ -589,8 +589,8 @@ class iGibsonEnv(BaseEnv):
                                                       posObj=self.actor_1_pos[:], 
                                                       ornObj=[0, 0, 0, 1])
                 elif self.drl_mode == "testing":
-                    #pos_x = random.uniform(self.config_mobiman.goal_range_min_x, self.config_mobiman.goal_range_max_x)
-                    #pos_y = random.uniform(self.config_mobiman.goal_range_min_y, self.config_mobiman.goal_range_max_y)
+                    self.actor_1_pos[0] = self.testing_samples[self.testing_idx][8]
+                    self.actor_1_pos[1] = self.testing_samples[self.testing_idx][9]
                     p.resetBasePositionAndOrientation(self.spawned_objects[idx], 
                                                       posObj=self.actor_1_pos[:], 
                                                       ornObj=[0, 0, 0, 1])
@@ -2025,8 +2025,13 @@ class iGibsonEnv(BaseEnv):
             #    continue
 
         self.save_oar_data()
-        if self.total_step_num % self.config_mobiman.data_save_freq == 0:
-            self.write_data_flag = True
+        
+        if self.drl_mode == "testing":
+            if self.episode_done:
+                self.write_data_flag = True
+        else:
+            if self.total_step_num % self.config_mobiman.data_save_freq == 0:
+                self.write_data_flag = True
 
         #time_start_save = time.time()
         #self.save_oar_data()
@@ -2656,6 +2661,80 @@ class iGibsonEnv(BaseEnv):
             testing_range_box_n_points_x = 3
             testing_range_box_n_points_y = 1
             testing_range_box_n_points_z = 1
+
+        elif self.config_mobiman.testing_mode == 2:
+            
+            ## Parameters for robot pose
+            testing_range_robot_pos_x_min = -1.5
+            testing_range_robot_pos_x_max = 1.5
+            testing_range_robot_n_points_x = 3
+
+            testing_range_robot_pos_y_min = -1.5
+            testing_range_robot_pos_y_max = 1.0
+            testing_range_robot_n_points_y = 3
+
+            testing_range_robot_yaw_min = 0.0 # -0.5 * math.pi
+            testing_range_robot_yaw_max = 1.5 * math.pi # math.pi
+            testing_range_robot_n_yaw = 4
+
+            ## Parameters for object pose
+            testing_range_box_n_points_x = 3
+            testing_range_box_n_points_y = 1
+            testing_range_box_n_points_z = 1
+
+            ## Parameters for agents pose
+            testing_range_agent0_pos_x_min = -1.8
+            testing_range_agent0_pos_x_max = -1.8
+            testing_range_agent0_n_points_x = 1
+
+            testing_range_agent0_pos_y_min = 1.0
+            testing_range_agent0_pos_y_max = 1.0
+            testing_range_agent0_n_points_y = 1
+
+            testing_range_agent1_pos_x_min = 1.8
+            testing_range_agent1_pos_x_max = 1.8
+            testing_range_agent1_n_points_x = 1
+
+            testing_range_agent1_pos_y_min = 1.0
+            testing_range_agent1_pos_y_max = 1.0
+            testing_range_agent1_n_points_y = 1
+
+        elif self.config_mobiman.testing_mode == 3:
+            
+            ## Parameters for robot pose
+            testing_range_robot_pos_x_min = -1.5
+            testing_range_robot_pos_x_max = 1.5
+            testing_range_robot_n_points_x = 3
+
+            testing_range_robot_pos_y_min = -1.5
+            testing_range_robot_pos_y_max = -1.5
+            testing_range_robot_n_points_y = 1
+
+            testing_range_robot_yaw_min = 0.5 * math.pi
+            testing_range_robot_yaw_max = 0.5 * math.pi # math.pi
+            testing_range_robot_n_yaw = 1
+
+            ## Parameters for object pose
+            testing_range_box_n_points_x = 1
+            testing_range_box_n_points_y = 1
+            testing_range_box_n_points_z = 1
+
+            ## Parameters for agents pose
+            testing_range_agent0_pos_x_min = -1.0
+            testing_range_agent0_pos_x_max = -0.5
+            testing_range_agent0_n_points_x = 2
+
+            testing_range_agent0_pos_y_min = 0.0
+            testing_range_agent0_pos_y_max = 0.5
+            testing_range_agent0_n_points_y = 2
+
+            testing_range_agent1_pos_x_min = 0.5
+            testing_range_agent1_pos_x_max = 1.0
+            testing_range_agent1_n_points_x = 2
+
+            testing_range_agent1_pos_y_min = -0.5
+            testing_range_agent1_pos_y_max = 0.0
+            testing_range_agent1_n_points_y = 2
         
         else:
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_testing_domain] ERROR :Invalid testing_mode: " + str(self.config_mobiman.testing_mode) + str("!"))
@@ -2669,6 +2748,10 @@ class iGibsonEnv(BaseEnv):
         testing_range_box_pos_x_min = self.config_mobiman.goal_range_min_x
         testing_range_box_pos_x_max = self.config_mobiman.goal_range_max_x
         
+        if self.config_mobiman.testing_mode == 3:
+            testing_range_box_pos_x_min = 0.0
+            testing_range_box_pos_x_max = 0.0
+
         testing_range_box_pos_y_min = self.config_mobiman.goal_range_min_y
         testing_range_box_pos_y_max = self.config_mobiman.goal_range_max_y
 
@@ -2679,17 +2762,45 @@ class iGibsonEnv(BaseEnv):
         box_pos_y_lin = np.linspace(testing_range_box_pos_y_min, testing_range_box_pos_y_max, testing_range_box_n_points_y)
         box_pos_z_lin = np.linspace(testing_range_box_pos_z_min, testing_range_box_pos_z_max, testing_range_box_n_points_z)
 
+        ## Initialize agent pose configurations
+        if self.config_mobiman.testing_mode == 2 or self.config_mobiman.testing_mode == 3:
+            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_testing_domain] TESTING WITH AGENTS!")
+            
+            agent0_pos_x_lin = np.linspace(testing_range_agent0_pos_x_min, testing_range_agent0_pos_x_max, testing_range_agent0_n_points_x)
+            agent0_pos_y_lin = np.linspace(testing_range_agent0_pos_y_min, testing_range_agent0_pos_y_max, testing_range_agent0_n_points_y)
+
+            agent1_pos_x_lin = np.linspace(testing_range_agent1_pos_x_min, testing_range_agent1_pos_x_max, testing_range_agent1_n_points_x)
+            agent1_pos_y_lin = np.linspace(testing_range_agent1_pos_y_min, testing_range_agent1_pos_y_max, testing_range_agent1_n_points_y)
+
         ### Testing Samples
-        ## Format: [robot_pos_x, robot_pos_y, robot_yaw, box_pos_x, box_pos_y, box_pos_z]
-        robot_pos_x_mesh, robot_pos_y_mesh, robot_pos_theta, box_pos_x_mesh, box_pos_y_mesh, box_pos_z_mesh = np.meshgrid(robot_pos_x_lin, robot_pos_y_lin, yaw_lin, 
-                                                                                                                          box_pos_x_lin, box_pos_y_lin, box_pos_z_lin)
+        if self.config_mobiman.testing_mode == 0 or self.config_mobiman.testing_mode == 1:
+            ## Format: [robot_pos_x, robot_pos_y, robot_yaw, box_pos_x, box_pos_y, box_pos_z]
+            robot_pos_x_mesh, robot_pos_y_mesh, robot_pos_theta, box_pos_x_mesh, box_pos_y_mesh, box_pos_z_mesh = np.meshgrid(robot_pos_x_lin, robot_pos_y_lin, yaw_lin, 
+                                                                                                                            box_pos_x_lin, box_pos_y_lin, box_pos_z_lin)
+            
+            self.testing_samples = np.column_stack((robot_pos_x_mesh.flatten(), robot_pos_y_mesh.flatten(), robot_pos_theta.flatten(), 
+                                                    box_pos_x_mesh.flatten(), box_pos_y_mesh.flatten(), box_pos_z_mesh.flatten()))
         
-        self.testing_samples = np.column_stack((robot_pos_x_mesh.flatten(), robot_pos_y_mesh.flatten(), robot_pos_theta.flatten(), 
-                                                box_pos_x_mesh.flatten(), box_pos_y_mesh.flatten(), box_pos_z_mesh.flatten()))
+        elif self.config_mobiman.testing_mode == 2 or self.config_mobiman.testing_mode == 3:
+            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_testing_domain] TESTING WITH AGENTS!")
+            ## Format: [robot_pos_x, robot_pos_y, robot_yaw, box_pos_x, box_pos_y, box_pos_z, agent0_pos_x, agent0_pos_y, , agent1_pos_x, agent1_pos_y]
+            robot_pos_x_mesh, robot_pos_y_mesh, robot_pos_theta, box_pos_x_mesh, box_pos_y_mesh, box_pos_z_mesh, agent0_pos_x_mesh, agent0_pos_y_mesh, agent1_pos_x_mesh, agent1_pos_y_mesh = np.meshgrid(robot_pos_x_lin, robot_pos_y_lin, yaw_lin, 
+                                                                                                                                                                                                          box_pos_x_lin, box_pos_y_lin, box_pos_z_lin,
+                                                                                                                                                                                                          agent0_pos_x_lin, agent0_pos_y_lin,
+                                                                                                                                                                                                          agent1_pos_x_lin, agent1_pos_y_lin)
+            
+            self.testing_samples = np.column_stack((robot_pos_x_mesh.flatten(), robot_pos_y_mesh.flatten(), robot_pos_theta.flatten(), 
+                                                    box_pos_x_mesh.flatten(), box_pos_y_mesh.flatten(), box_pos_z_mesh.flatten(),
+                                                    agent0_pos_x_mesh.flatten(), agent0_pos_y_mesh.flatten(),
+                                                    agent1_pos_x_mesh.flatten(), agent1_pos_y_mesh.flatten()))
         
         if self.flag_print_info:
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_robot_pose] testing_sample_robot_pose len: " + str(len(self.testing_samples)))
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_testing_domain] END")
+
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_testing_domain] DEBUG_INF")
+        #while 1:
+        #    continue
 
     '''
     DESCRIPTION: TODO...Gets the initial location of the robot to reset
