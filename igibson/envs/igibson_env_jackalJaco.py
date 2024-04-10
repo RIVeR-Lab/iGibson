@@ -259,7 +259,7 @@ class iGibsonEnv(BaseEnv):
         
         elif self.drl_mode == "testing":
             self.initialize_testing_domain()
-            self.oar_data_file = data_folder_path + "oar_data_" + drl_mode + "_" + self.config_mobiman.testing_benchmark_name + self.config_mobiman.initial_training_model_name + ".csv"
+            self.oar_data_file = data_folder_path + "oar_data_" + drl_mode + "_" + self.config_mobiman.testing_benchmark_name + "_" + self.config_mobiman.initial_training_model_name + ".csv"
         
         else:
             print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::__init__] ERROR: Invalid drl_mode!")
