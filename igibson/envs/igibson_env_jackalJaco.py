@@ -545,13 +545,13 @@ class iGibsonEnv(BaseEnv):
             elif "actor_0" in key:
                 if self.drl_mode == "training":
 
-                    pos_x = random.uniform(self.config_mobiman.init_robot_pos_range_x_min, self.config_mobiman.init_robot_pos_range_x_max)
-                    pos_y = random.uniform(self.config_mobiman.init_robot_pos_range_y_min, self.config_mobiman.init_robot_pos_range_y_max)
+                    pos_x = random.uniform(self.config_mobiman.init_agent_pos_range_x_min, self.config_mobiman.init_agent_pos_range_x_max)
+                    pos_y = random.uniform(self.config_mobiman.init_agent_pos_range_y_min, self.config_mobiman.init_agent_pos_range_y_max)
                     dist = self.get_euclidean_distance_2D({"x": pos_x, "y": pos_y}, self.init_robot_pose)
                     while dist < 1.0:
                         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] actor_0 STUCK!")
-                        pos_x = random.uniform(self.config_mobiman.init_robot_pos_range_x_min, self.config_mobiman.init_robot_pos_range_x_max)
-                        pos_y = random.uniform(self.config_mobiman.init_robot_pos_range_y_min, self.config_mobiman.init_robot_pos_range_y_max)
+                        pos_x = random.uniform(self.config_mobiman.init_agent_pos_range_x_min, self.config_mobiman.init_agent_pos_range_x_max)
+                        pos_y = random.uniform(self.config_mobiman.init_agent_pos_range_y_min, self.config_mobiman.init_agent_pos_range_y_max)
                         dist = self.get_euclidean_distance_2D({"x": pos_x, "y": pos_y}, self.init_robot_pose)
                     
                     self.actor_0_pos[0] = pos_x
@@ -571,14 +571,14 @@ class iGibsonEnv(BaseEnv):
             elif "actor_1" in key:
                 if self.drl_mode == "training":
 
-                    pos_x = random.uniform(self.config_mobiman.init_robot_pos_range_x_min, self.config_mobiman.init_robot_pos_range_x_max)
-                    pos_y = random.uniform(self.config_mobiman.init_robot_pos_range_y_min, self.config_mobiman.init_robot_pos_range_y_max)
+                    pos_x = random.uniform(self.config_mobiman.init_agent_pos_range_x_min, self.config_mobiman.init_agent_pos_range_x_max)
+                    pos_y = random.uniform(self.config_mobiman.init_agent_pos_range_y_min, self.config_mobiman.init_agent_pos_range_y_max)
                     dist1 = self.get_euclidean_distance_2D({"x": pos_x, "y": pos_y}, self.init_robot_pose)
                     dist2 = self.get_euclidean_distance_2D({"x": pos_x, "y": pos_y}, {"x": self.actor_0_pos[0], "y": self.actor_0_pos[1]})
                     while dist1 < 1.0 or dist2 < 1.0:
                         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::randomize_env] actor_1 STUCK!")
-                        pos_x = random.uniform(self.config_mobiman.init_robot_pos_range_x_min, self.config_mobiman.init_robot_pos_range_x_max)
-                        pos_y = random.uniform(self.config_mobiman.init_robot_pos_range_y_min, self.config_mobiman.init_robot_pos_range_y_max)
+                        pos_x = random.uniform(self.config_mobiman.init_agent_pos_range_x_min, self.config_mobiman.init_agent_pos_range_x_max)
+                        pos_y = random.uniform(self.config_mobiman.init_agent_pos_range_y_min, self.config_mobiman.init_agent_pos_range_y_max)
                         dist1 = self.get_euclidean_distance_2D({"x": pos_x, "y": pos_y}, self.init_robot_pose)
                         dist2 = self.get_euclidean_distance_2D({"x": pos_x, "y": pos_y}, {"x": self.actor_0_pos[0], "y": self.actor_0_pos[1]})
 
@@ -2819,9 +2819,6 @@ class iGibsonEnv(BaseEnv):
 
         init_robot_yaw = 0.0
         if self.drl_mode == "training":
-
-            self.config_mobiman.init_robot_pos_range_x_min
-
             # Set init robot pose
             init_robot_pose_areas_x = []
             init_robot_pose_areas_x.extend(([self.config_mobiman.init_robot_pos_range_x_min, self.config_mobiman.init_robot_pos_range_x_max], 
@@ -3553,6 +3550,8 @@ class iGibsonEnv(BaseEnv):
         obs_occ_y_max = 1.5 * (self.config_mobiman.world_range_y_max - self.config_mobiman.world_range_y_min)
         obs_occ_z_max = 1.5 * (self.config_mobiman.world_range_z_max - self.config_mobiman.world_range_z_min)
 
+        debug_point_data = []
+
         obs_occ = []
         for i, occ in enumerate(self.config_mobiman.occupancy_frame_names):
             
@@ -3574,6 +3573,18 @@ class iGibsonEnv(BaseEnv):
             elif obs_occ_z > obs_occ_z_max:
                 obs_occ_z = obs_occ_z_max
             
+            p = Point()
+            #p.x = self.occupancy_data_wrt_world[occ][0]
+            #p.y = self.occupancy_data_wrt_world[occ][1]
+            p.x = obs_occ_x
+            p.y = obs_occ_y
+            p.z = 2.0
+            debug_point_data.append(p)
+
+            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_obs_mobiman_occupancy] occ: " + str(occ))
+            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_obs_mobiman_occupancy] p.x: " + str(p.x))
+            #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_obs_mobiman_occupancy] p.y: " + str(p.y))
+
             obs_occ.append([obs_occ_x, obs_occ_y, obs_occ_z])
 
             if check_flag:
@@ -3584,11 +3595,15 @@ class iGibsonEnv(BaseEnv):
                      obs_occ[i][2] < -obs_occ_z_max or
                      obs_occ[i][2] > obs_occ_z_max):
                     
-                    print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_obs_mobiman_goal] obs_occ_x_max: " + str(obs_occ_x_max))
-                    print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_obs_mobiman_goal] obs_occ_y_max: " + str(obs_occ_y_max))
-                    print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_obs_mobiman_goal] obs_occ_z_max: " + str(obs_occ_z_max))
+                    print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_obs_mobiman_occupancy] obs_occ_x_max: " + str(obs_occ_x_max))
+                    print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_obs_mobiman_occupancy] obs_occ_y_max: " + str(obs_occ_y_max))
+                    print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_obs_mobiman_occupancy] obs_occ_z_max: " + str(obs_occ_z_max))
 
                     check_result = False
+
+        robot_frame_name = self.ns[1:] + self.config_mobiman.robot_frame_name
+        #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_obs_mobiman_occupancy] robot_frame_name: " + str(robot_frame_name))
+        self.publish_debug_visu(debug_point_data, frame_name=robot_frame_name)
 
         obs_mobiman_occupancy = np.array([obs_occ]).reshape(self.config_mobiman.fc_obs_shape)
 
@@ -3758,12 +3773,14 @@ class iGibsonEnv(BaseEnv):
                                                                  self.config_mobiman.reward_step_target_intermediate_point_scale)
         pT = {"x": desired_robot_wrt_world_2D[0], "y": desired_robot_wrt_world_2D[1]}
         
+        '''
         p = Point()
         p.x = desired_robot_wrt_world_2D[0]
         p.y = desired_robot_wrt_world_2D[1]
         p.z = 0.0
         debug_point_data = [p]
         self.publish_debug_visu(debug_point_data, frame_name="world")
+        '''
 
         dTR0 = self.get_euclidean_distance_2D(pT, self.previous_base_wrt_world_2D)
         dTR1 = self.get_euclidean_distance_2D(pT, self.current_base_wrt_world_2D)

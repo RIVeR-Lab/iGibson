@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 '''
-LAST UPDATE: 2024.03.20
+LAST UPDATE: 2024.04.11
 
 AUTHOR: Neset Unver Akmandor (NUA)
 
@@ -455,6 +455,9 @@ def main(selection="user", headless=False, short_exec=False):
     else:
         model = PPO.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
     #model.set_env(env)
+
+    model.set_parameters(initial_trained_model_path)
+    print("[mobiman_drl_training::__main__] Set params from initial_trained_model: " + initial_trained_model_path)
     
     print("[drl_testing_sb3_mobiman_jackalJaco::main] Loaded initial_trained_model_path: " + initial_trained_model_path)
 

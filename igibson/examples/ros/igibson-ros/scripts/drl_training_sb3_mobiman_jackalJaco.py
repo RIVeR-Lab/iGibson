@@ -490,20 +490,23 @@ def main(selection="user", headless=False, short_exec=False):
             initial_trained_model = initial_trained_model_path
             
             if rl_algorithm == "SAC":
-                model = SAC.load(initial_trained_model, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+                model = SAC.load(initial_trained_model, env=env, tensorboard_log=tensorboard_log_path, print_system_info=True) # type: ignore
             
             elif rl_algorithm == "DDPG":
-                model = DDPG.load(initial_trained_model, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+                model = DDPG.load(initial_trained_model, env=env, tensorboard_log=tensorboard_log_path, print_system_info=True) # type: ignore
             
             elif rl_algorithm == "A2C":
-                model = A2C.load(initial_trained_model, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+                model = A2C.load(initial_trained_model, env=env, tensorboard_log=tensorboard_log_path, print_system_info=True) # type: ignore
 
             elif rl_algorithm == "DQN":
-                model = DQN.load(initial_trained_model, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+                model = DQN.load(initial_trained_model, env=env, tensorboard_log=tensorboard_log_path, print_system_info=True) # type: ignore
             
             else:
-                model = PPO.load(initial_trained_model, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+                model = PPO.load(initial_trained_model, env=env, tensorboard_log=tensorboard_log_path, print_system_info=True) # type: ignore
             #model.set_env(env)
+            #manual_param_model = "/home/akmandor/ros_workspaces/igibson_ws/src/mobiman/mobiman_simulation/dataset/drl/training/re4mpc_disc_dqn_rewMGT_wAgents/20240404_234931_DQN_mobiman/trained_model"
+            model.set_parameters(initial_trained_model)
+            print("[mobiman_drl_training::__main__] Set params from initial_trained_model: " + initial_trained_model)
 
             training_log_path = mobiman_path + data_path + initial_training_path + training_log_name + ".csv"
             total_training_timesteps = int(get_param_value_from_training_log(training_log_path, "total_training_timesteps")) + training_timesteps # type: ignore
