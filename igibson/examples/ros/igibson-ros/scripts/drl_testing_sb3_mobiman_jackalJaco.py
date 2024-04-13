@@ -441,19 +441,19 @@ def main(selection="user", headless=False, short_exec=False):
         initial_trained_model_path = mobiman_path + data_path + initial_training_path + initial_training_model_name # type: ignore
     
     if rl_algorithm == "SAC":
-        model = SAC.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+        model = SAC.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path, device="cuda") # type: ignore
     
     elif rl_algorithm == "DDPG":
-        model = DDPG.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+        model = DDPG.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path, device="cuda") # type: ignore
     
     elif rl_algorithm == "A2C":
-        model = A2C.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+        model = A2C.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path, device="cuda") # type: ignore
 
     elif rl_algorithm == "DQN":
-        model = DQN.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+        model = DQN.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path, device="cuda") # type: ignore
     
     else:
-        model = PPO.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+        model = PPO.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path, device="cuda") # type: ignore
     #model.set_env(env)
 
     model.set_parameters(initial_trained_model_path)

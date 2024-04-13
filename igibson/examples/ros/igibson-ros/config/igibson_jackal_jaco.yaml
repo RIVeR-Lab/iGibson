@@ -25,13 +25,13 @@ task: mobiman_pick
 
 ### NUA TODO: DEFINE THESE IN A SCRIPT THAT DEFINE IGIBSON TASK!
 ## Objects
-#objects: {conveyor_belt: 101_conveyor, 
-#          red_cube: 102_cube}
-
 objects: {conveyor_belt: 101_conveyor, 
-          red_cube: 102_cube,
-          actor_0: 102_cube,
-          actor_1: 102_cube}
+          red_cube: 102_cube}
+
+#objects: {conveyor_belt: 101_conveyor, 
+#          red_cube: 102_cube,
+#          actor_0: 102_cube,
+#          actor_1: 102_cube}
 
 conveyor_pos: [0.0, 2.0, 0.25]
 actor_0_pos: [-1.0, 0.0, 0.6]

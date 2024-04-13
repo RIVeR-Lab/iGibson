@@ -2167,14 +2167,14 @@ class iGibsonEnv(BaseEnv):
         obs_mobiman_occupancy_min = np.tile(obs_mobiman_occupancy_min_single, self.config_mobiman.n_occupancy).reshape(self.config_mobiman.fc_obs_shape) # type: ignore
         obs_mobiman_occupancy_max = np.tile(obs_mobiman_occupancy_max_single, self.config_mobiman.n_occupancy).reshape(self.config_mobiman.fc_obs_shape) # type: ignore
 
-        '''
+        #'''
         obs_mobiman_occupancy_max = np.array([obs_occ_x_max,
                                               obs_occ_y_max,
                                               obs_occ_z_max,
                                               obs_occ_x_max,
                                               obs_occ_y_max,
                                               obs_occ_x_max])
-        '''
+        #'''
         
         #print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::get_observation_space_mobiman_occupancy] END")
 
