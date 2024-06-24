@@ -84,7 +84,7 @@ def main():
     mode = igibson_config["mode"]
     action_timestep = igibson_config["action_timestep"]
     physics_timestep = igibson_config["physics_timestep"]
-    render_timestep = igibson_config["render_timestep"]
+    #render_timestep = igibson_config["render_timestep"]
     use_pb_gui = igibson_config["use_pb_gui"]
     objects = igibson_config["objects"]
     tensorboard_log_dir = igibson.ros_path + "/log"
@@ -100,7 +100,7 @@ def main():
     print("[mobiman_jackalJaco::main] mode: " + str(mode))
     print("[mobiman_jackalJaco::main] action_timestep: " + str(action_timestep))
     print("[mobiman_jackalJaco::main] physics_timestep: " + str(physics_timestep))
-    print("[mobiman_jackalJaco::main] render_timestep: " + str(render_timestep))
+    #print("[mobiman_jackalJaco::main] render_timestep: " + str(render_timestep))
     print("[mobiman_jackalJaco::main] use_pb_gui: " + str(use_pb_gui))
     
     print("[mobiman_jackalJaco::main] tensorboard_log_dir: " + str(tensorboard_log_dir))
