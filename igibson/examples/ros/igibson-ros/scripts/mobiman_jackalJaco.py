@@ -63,6 +63,7 @@ def main():
     mobiman_path = rospack.get_path('mobiman_simulation') + "/"
 
     ## Initialize the parameters
+    flag_print_info = rospy.get_param('flag_print_info', False)
     igibson_config_file = rospy.get_param('igibson_config_file', "")
     mobiman_mode = rospy.get_param('mode', "")
 
@@ -88,8 +89,9 @@ def main():
     use_pb_gui = igibson_config["use_pb_gui"]
     objects = igibson_config["objects"]
     tensorboard_log_dir = igibson.ros_path + "/log"
-    num_environments = n_robot
+    num_environments = n_robot+1
 
+    print("[mobiman_jackalJaco::main] flag_print_info: " + str(flag_print_info))
     print("[mobiman_jackalJaco::main] ros_path: " + str(igibson.ros_path))
     print("[mobiman_jackalJaco::main] config_file: " + str(igibson_config_file))
     print("[mobiman_jackalJaco::main] config_path: " + str(igibson_config_path))
@@ -123,7 +125,8 @@ def main():
                 use_pb_gui=use_pb_gui,
                 automatic_reset=True,
                 objects=objects,
-                flag_drl=flag_drl,        
+                flag_drl=flag_drl,   
+                flag_print_info=flag_print_info      
             )
             env.seed(seed + rank) # type: ignore
             return env
