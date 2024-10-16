@@ -96,7 +96,7 @@ class ManipulationRobot(BaseRobot):
         :param **kwargs: see BaseRobot
         """
 
-        print("[manipulation_robot::ManipulationRobot::__init__] START")
+        #print("[manipulation_robot::ManipulationRobot::__init__] START")
         
         # Store relevant internal vars
         assert_valid_key(key=grasping_mode, valid_keys=AG_MODES, name="grasping_mode")
@@ -115,12 +115,12 @@ class ManipulationRobot(BaseRobot):
         self._ag_freeze_gripper = {arm: None for arm in self.arm_names}
         self._ag_release_counter = {arm: None for arm in self.arm_names}
 
-        print("[manipulation_robot::ManipulationRobot::__init__] BEFORE super")
+        #print("[manipulation_robot::ManipulationRobot::__init__] BEFORE super")
         # Call super() method
         super().__init__(self_collision=self_collision, **kwargs)
-        print("[manipulation_robot::ManipulationRobot::__init__] AFTER super")
+        #print("[manipulation_robot::ManipulationRobot::__init__] AFTER super")
 
-        print("[manipulation_robot::ManipulationRobot::__init__] END")
+        #print("[manipulation_robot::ManipulationRobot::__init__] END")
 
     def _validate_configuration(self):
         # Iterate over all arms

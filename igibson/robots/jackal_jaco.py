@@ -26,7 +26,7 @@ class JackalJaco(ManipulationRobot, FourWheelRobot):
             instead.
         :param **kwargs: see ManipulationRobot, TwoWheelRobot
         """
-        print("[jackal_jaco::JackalJaco::__init__] START")
+        #print("[jackal_jaco::JackalJaco::__init__] START")
 
         # Parse reset joint pos if specifying special string
         if isinstance(reset_joint_pos, str):
@@ -37,12 +37,12 @@ class JackalJaco(ManipulationRobot, FourWheelRobot):
                 self.tucked_default_joint_pos if reset_joint_pos == "tuck" else self.untucked_default_joint_pos
             )
 
-        print("[jackal_jaco::JackalJaco::__init__] BEFORE super")
+        #print("[jackal_jaco::JackalJaco::__init__] BEFORE super")
         # Run super init
         super().__init__(reset_joint_pos=reset_joint_pos, **kwargs)
-        print("[jackal_jaco::JackalJaco::__init__] AFTER super")
+        #print("[jackal_jaco::JackalJaco::__init__] AFTER super")
 
-        print("[jackal_jaco::JackalJaco::__init__] END")
+        #print("[jackal_jaco::JackalJaco::__init__] END")
 
     @property
     def model_name(self):

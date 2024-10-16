@@ -564,14 +564,14 @@ def main(selection="user", headless=False, short_exec=False):
 
     checkpoint_callback = CheckpointCallback(save_freq=training_checkpoint_freq, save_path=data_folder_path + '/training_checkpoints/', name_prefix='trained_model') # type: ignore
 
-    print("[drl_training_sb3_mobiman_jackalJaco::main] BEFORE learn")
+    #print("[drl_training_sb3_mobiman_jackalJaco::main] BEFORE learn")
     start_learning = time.time()
 
     print("[drl_training_sb3_mobiman_jackalJaco::main] training_timesteps: " + str(training_timesteps))
 
     model.learn(training_timesteps, callback=checkpoint_callback, progress_bar=True) # type: ignore
     end_learning = time.time()
-    print("[drl_training_sb3_mobiman_jackalJaco::main] AFTER learn")
+    #print("[drl_training_sb3_mobiman_jackalJaco::main] AFTER learn")
 
     model.save(new_trained_model_file) # type: ignore
 
