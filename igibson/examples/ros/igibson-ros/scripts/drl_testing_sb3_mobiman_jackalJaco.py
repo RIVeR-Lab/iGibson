@@ -435,31 +435,41 @@ def main(selection="user", headless=False, short_exec=False):
     #while 1:
     #    continue
 
-    if initial_training_model_name == "":
-        initial_trained_model_path = mobiman_path + data_path + initial_training_path + "trained_model" # type: ignore
-    else:
-        initial_trained_model_path = mobiman_path + data_path + initial_training_path + initial_training_model_name # type: ignore
-    
-    if rl_algorithm == "SAC":
-        model = SAC.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
-    
-    elif rl_algorithm == "DDPG":
-        model = DDPG.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
-    
-    elif rl_algorithm == "A2C":
-        model = A2C.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+    if testing_benchmark_name == "ocs2wb":
+        print("[drl_testing_sb3_mobiman_jackalJaco::main] Loaded a dummy model!")
 
-    elif rl_algorithm == "DQN":
-        model = DQN.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
-    
+        ## Set a dummy model
+        model = SAC("MlpPolicy", 
+                    env,
+                    tensorboard_log=tensorboard_log_path, 
+                    device="cuda", 
+                    verbose=1)
     else:
-        model = PPO.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
-    #model.set_env(env)
+        if initial_training_model_name == "":
+            initial_trained_model_path = mobiman_path + data_path + initial_training_path + "trained_model" # type: ignore
+        else:
+            initial_trained_model_path = mobiman_path + data_path + initial_training_path + initial_training_model_name # type: ignore
+        
+        if rl_algorithm == "SAC":
+            model = SAC.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+        
+        elif rl_algorithm == "DDPG":
+            model = DDPG.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+        
+        elif rl_algorithm == "A2C":
+            model = A2C.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
 
-    model.set_parameters(initial_trained_model_path)
-    print("[mobiman_drl_training::__main__] Set params from initial_trained_model: " + initial_trained_model_path)
-    
-    print("[drl_testing_sb3_mobiman_jackalJaco::main] Loaded initial_trained_model_path: " + initial_trained_model_path)
+        elif rl_algorithm == "DQN":
+            model = DQN.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+        
+        else:
+            model = PPO.load(initial_trained_model_path, env=env, tensorboard_log=tensorboard_log_path) # type: ignore
+        #model.set_env(env)
+
+        model.set_parameters(initial_trained_model_path)
+        print("[mobiman_drl_training::__main__] Set params from initial_trained_model: " + initial_trained_model_path)
+        
+        print("[drl_testing_sb3_mobiman_jackalJaco::main] Loaded initial_trained_model_path: " + initial_trained_model_path)
 
     # Evaluate the policy after training
     start_testing = time.time()
@@ -485,144 +495,6 @@ def main(selection="user", headless=False, short_exec=False):
     print("[drl_testing_sb3_mobiman_jackalJaco::main] End of testing!")
     print("[drl_testing_sb3_mobiman_jackalJaco::main] testing_time[min]: " + str(testing_time))
     print("")
-
-    '''
-    print("BEFORE evaluate_policy 1")
-    # Evaluate the policy after training
-    mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=5)
-    print(f"After Training: Mean reward: {mean_reward} +/- {std_reward:.2f}")
-    print("AFTER evaluate_policy 1")
-
-    # Save the trained model and delete it
-    model.save("ckpt")
-    del model
-
-    # Reload the trained model from file
-    model = PPO.load("ckpt")
-
-    print("BEFORE evaluate_policy 2")
-    # Evaluate the trained model loaded from file
-    mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=5)
-    print(f"After Loading: Mean reward: {mean_reward} +/- {std_reward:.2f}")
-    print("AFTER evaluate_policy 2")
-    '''
-
-    '''
-    ### Start Testing
-    # Initialize parameters
-    counter = 0
-    start_time = rospy.get_time()
-    episode_result_list = []
-    goal_reached = 0.0
-    n_testing_ = 5
-
-    initial_trained_model_path = mobiman_path + data_path + initial_training_path + "trained_model" # type: ignore
-    initial_trained_model = initial_trained_model_path
-    print("[drl_testing_sb3_mobiman_jackalJaco::main] Loaded initial_trained_model: " + initial_trained_model)
-
-    start_testing = time.time()
-    while(not env.flag_testing_done):
-
-        model = PPO.load(initial_trained_model, env=env, tensorboard_log=tensorboard_log_path)
-        print("--------------")
-        print("[drl_testing_sb3_mobiman_jackalJaco::main] Testing episode " + str(env.testing_idx))
-        print("--------------")
-
-        #model.set_env(env)
-        obs = env.reset()
-
-        # Evaluate the agent
-        episode_reward = 0
-        total_distance_episode = 0.0
-        start_time = rospy.get_time()
-
-        # if goal_reached == 1.0:
-        #     break
-
-        for i in range(max_testing_episode_timesteps):
-
-            #print("--------------")
-            #print("[drl_testing_sb3_mobiman_jackalJaco::main] i: {}".format(i))
-            #print("--------------")
-
-            action, _ = model.predict(obs)
-            obs, reward, done, info = env.step(action)
-            episode_reward += reward
-            goal_reached = gr
-            
-            if (done):
-                #print("--------------")
-                #print("[drl_testing_sb3_mobiman_jackalJaco::main] Done!")
-                #print("--------------")
-                counter += 1
-
-                total_time_episode = rospy.get_time() - start_time
-                    
-                print("--------------")
-                print("[drl_testing_sb3_mobiman_jackalJaco::main] goal_reached: {}".format(goal_reached))
-                print("[drl_testing_sb3_mobiman_jackalJaco::main] total_time_episode: {}".format(total_time_episode))
-                print("[drl_testing_sb3_mobiman_jackalJaco::main] total_distance_episode: {}".format(total_distance_episode))
-                print("--------------")
-
-                episode_result_list.append([goal_reached, total_time_episode, total_distance_episode])
-                break
-            
-            else:
-                if i == max_testing_episode_timesteps-1:
-                    print("--------------")
-                    print("[drl_testing_sb3_mobiman_jackalJaco::main] Max number of timesteps has been reached!")
-                    print("--------------")
-                    counter += 1
-
-                    total_time_episode = rospy.get_time() - start_time
-                    
-                    print("--------------")
-                    print("[drl_testing_sb3_mobiman_jackalJaco::main] goal_reached: {}".format(goal_reached))
-                    print("[drl_testing_sb3_mobiman_jackalJaco::main] total_time_episode: {}".format(total_time_episode))
-                    print("[drl_testing_sb3_mobiman_jackalJaco::main] total_distance_episode: {}".format(total_distance_episode))
-                    print("--------------")
-
-                    episode_result_list.append([goal_reached, total_time_episode, total_distance_episode])
-                    
-                    obs = env.reset()
-                    break
-    end_testing = time.time()
-
-    testing_time = (end_testing - start_testing) / 60
-
-    print("[drl_testing_sb3_mobiman_jackalJaco::main] End of testing!")
-    print("[drl_testing_sb3_mobiman_jackalJaco::main] testing_time[min]: " + str(testing_time))
-    '''
-
-    '''
-    testing_log_data = []
-    #testing_log_data.append(["total_training_episodes", total_training_episodes])
-    #testing_log_data.append(["total_training_timesteps", total_training_timesteps])
-    testing_log_data.append(["learning_time[min]", learning_time])
-
-    print("--------------")
-    print("[mobiman_drl_training::__main__] End of training!")
-    print("[mobiman_drl_training::__main__] learning_time[min]: " + str(learning_time))
-    print("--------------")
-    #rospy.logdebug("[mobiman_drl_training::__main__] End of training!")
-
-    ## Write all results into the log file of the training
-    write_data(testing_log_file, testing_log_data)
-    '''
-
-    '''
-    ## Write testing results
-    testing_result_log_file = data_folder_path + "testing_result_log.csv"
-    result_file = open(testing_result_log_file, 'w')
-    with result_file:     
-        write = csv.writer(result_file)
-        episode_result_list.insert(0, ["success", "duration", "path_length"])
-        write.writerows(episode_result_list)
-    '''
-
-    ## Save the result plots of the testing
-    #plot_testing_result(data_folder_path)
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
