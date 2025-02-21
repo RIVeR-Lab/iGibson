@@ -1752,12 +1752,16 @@ class iGibsonEnv(BaseEnv):
             action = 104     # Whole-body goal
         elif self.config_mobiman.action_type == 1 and self.drl_mode == "testing" and self.config_mobiman.testing_benchmark_name == "ocs2wb":
             if self.config_mobiman.testing_mode == 4:
+                # print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] Model mode: Base")
                 action[0] = 0.0     # Model mode: Base
             elif self.config_mobiman.testing_mode == 5:
+                # print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] Model mode: Arm")
                 action[0] = 0.5     # Model mode: Arm
             else:
+                # print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::take_action] Model mode: Whole-body")
                 action[0] = 1.0     # Model mode: Whole-body
             action[1] = 1.0     # Target mode: Goal
+            # print(f"[{self.ns}][igibson_env_jackalJaco::iGibsonEnv::take_action] action[1]: {action[1]}")
 
         self.step_action = action
         self.current_step += 1
@@ -2750,15 +2754,15 @@ class iGibsonEnv(BaseEnv):
             testing_range_agent1_pos_y_max = 0.0
             testing_range_agent1_n_points_y = 2
         
-        elif self.config_mobiman.testing_mode == 4 and self.config_mobiman.testing_mode == 5:
+        elif self.config_mobiman.testing_mode == 4 or self.config_mobiman.testing_mode == 5:
             
             ## Parameters for robot pose
             testing_range_robot_pos_x_min = 0.0
             testing_range_robot_pos_x_max = 0.0
             testing_range_robot_n_points_x = 1
 
-            testing_range_robot_pos_y_min = 2.0
-            testing_range_robot_pos_y_max = 2.0
+            testing_range_robot_pos_y_min = -1.0
+            testing_range_robot_pos_y_max = -1.0
             testing_range_robot_n_points_y = 1
 
             testing_range_robot_yaw_min = 0.0 # -0.5 * math.pi
@@ -2794,12 +2798,12 @@ class iGibsonEnv(BaseEnv):
             testing_range_box_n_points_y = 1
             testing_range_box_n_points_z = 1
 
+        else:
+            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_testing_domain] ERROR :Invalid testing_mode: " + str(self.config_mobiman.testing_mode) + str("!"))
+
             # print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_testing_domain] DEBUG_INF")
             # while 1:
             #    continue
-
-        else:
-            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::initialize_testing_domain] ERROR :Invalid testing_mode: " + str(self.config_mobiman.testing_mode) + str("!"))
 
         ## Initialize robot pose configurations
         robot_pos_x_lin = np.linspace(testing_range_robot_pos_x_min, testing_range_robot_pos_x_max, testing_range_robot_n_points_x)
@@ -2855,8 +2859,16 @@ class iGibsonEnv(BaseEnv):
                                                     box_pos_x_mesh.flatten(), box_pos_y_mesh.flatten(), box_pos_z_mesh.flatten(),
                                                     agent0_pos_x_mesh.flatten(), agent0_pos_y_mesh.flatten(),
                                                     agent1_pos_x_mesh.flatten(), agent1_pos_y_mesh.flatten()))
+
+        elif self.config_mobiman.testing_mode == 4:
+            ## Format: [robot_pos_x, robot_pos_y, robot_yaw, box_pos_x, box_pos_y, box_pos_z]
+            robot_pos_x_mesh, robot_pos_y_mesh, robot_pos_theta, box_pos_x_mesh, box_pos_y_mesh, box_pos_z_mesh = np.meshgrid(robot_pos_x_lin, robot_pos_y_lin, yaw_lin, 
+                                                                                                                            box_pos_x_lin, box_pos_y_lin, box_pos_z_lin)
             
-        if self.config_mobiman.testing_mode == 6:
+            self.testing_samples = np.column_stack((robot_pos_x_mesh.flatten(), robot_pos_y_mesh.flatten(), robot_pos_theta.flatten(), 
+                                                    box_pos_x_mesh.flatten(), box_pos_y_mesh.flatten(), box_pos_z_mesh.flatten()))
+
+        elif self.config_mobiman.testing_mode == 6:
             ## Format: [robot_pos_x, robot_pos_y, robot_yaw, box_pos_x, box_pos_y, box_pos_z]
             robot_pos_x_mesh, robot_pos_y_mesh, robot_pos_theta, box_pos_x_mesh, box_pos_y_mesh, box_pos_z_mesh = np.meshgrid(robot_pos_x_lin, robot_pos_y_lin, yaw_lin, 
                                                                                                                             box_pos_x_lin, box_pos_y_lin, box_pos_z_lin)
@@ -4156,7 +4168,7 @@ class iGibsonEnv(BaseEnv):
             self.oars_data['testing_state'].append(self.testing_samples[self.testing_idx])
             self.oars_data['testing_eval_index'].append(self.testing_eval_idx)
 
-            print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::save_oar_data] testing result: " + str(self.termination_reason))
+            # print("[" + self.ns + "][igibson_env_jackalJaco::iGibsonEnv::save_oar_data] testing result: " + str(self.termination_reason))
 
         if  self.episode_done:
             self.oars_data['log_file'].append("")
